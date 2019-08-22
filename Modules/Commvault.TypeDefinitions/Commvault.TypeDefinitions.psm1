@@ -61,13 +61,19 @@ enum CVVSABackupType {
     synthfull = 3
 }
 
+enum CVVSARestoreType {
+    #GuestFiles = 1
+    VirtualMachineFiles = 2
+    FullVirtualMachine = 3
+}
+
 enum CVVSAHyperVisorType {
     vmware    = 101
     hyperv    = 102
-    aws       = 103
-    azure     = 104
-    openstack = 105
-    ahv       = 106
+    #aws       = 103
+    #azure     = 104
+    #openstack = 105
+    #ahv       = 106
 }
 
 enum CVVSAContentOperationType {

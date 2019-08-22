@@ -580,6 +580,10 @@ function Backup-CVVirtualMachine {
     [OutputType([PSCustomObject])]
     param(
         [Alias('VMName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [String] $Id,
+
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $Name,
@@ -587,10 +591,6 @@ function Backup-CVVirtualMachine {
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $ClientName,
-
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
-        [ValidateNotNullorEmpty()]
-        [String] $Id,
 
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
@@ -769,6 +769,10 @@ function Get-CVVirtualMachineActiveMounts {
     [OutputType([PSCustomObject])]
     param(
         [Alias('VMName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [String] $Id,
+
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $Name,
@@ -776,10 +780,6 @@ function Get-CVVirtualMachineActiveMounts {
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $ClientName,
-
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
-        [ValidateNotNullorEmpty()]
-        [String] $Id,
 
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
@@ -807,7 +807,11 @@ function Get-CVVirtualMachineActiveMounts {
             $sessionObj.requestProps.endpoint = $endpointSave
 
             if ($PSCmdlet.ParameterSetName -eq 'ById') {
-                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $Id)
+                $vmObj = (Get-CVVirtualMachine -Id $Id)
+                if ($null -eq $vmObj) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine not found having id [$Id]"
+                    return
+                }
             }
             else {
                 $subclientObj = $null
@@ -846,9 +850,14 @@ function Get-CVVirtualMachineActiveMounts {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine not found having name [$Name]"
                     return
                 }
-
-                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
             }
+
+            if ($vmObj.vmStatus -ne 1) {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] is not protected"
+                return
+            }
+
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
 
             $headerObj = Get-CVRESTHeader $sessionObj
             $body = ''
@@ -889,6 +898,9 @@ function Mount-CVVirtualMachine {
 .DESCRIPTION
     Method to initiate live mount of specified virtual machine from specified media.
     
+.PARAMETER Id
+    Specify Id representing source virtual machine GUID.
+
 .PARAMETER Name
     Source virtual machine Name.
 
@@ -897,9 +909,6 @@ function Mount-CVVirtualMachine {
 
 .PARAMETER SubclientName
     Specify SubclientName to override the default behaviour.
-
-.PARAMETER Id
-    Specify Id representing source virtual machine GUID.
 
 .PARAMETER NetworkName
     Specify NetworkName for live mount operation.
@@ -943,6 +952,10 @@ function Mount-CVVirtualMachine {
     [OutputType([PSCustomObject])]
     param(
         [Alias('VMName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [String] $Id,
+
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $Name,
@@ -950,10 +963,6 @@ function Mount-CVVirtualMachine {
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $ClientName,
-
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
-        [ValidateNotNullorEmpty()]
-        [String] $Id,
 
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
@@ -1048,6 +1057,11 @@ function Mount-CVVirtualMachine {
                 }
             }
                 
+            if ($vmObj.vmStatus -ne 1) {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] is not protected"
+                return
+            }
+
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
 
             $jobObj = @{}
@@ -1204,25 +1218,43 @@ function Dismount-CVVirtualMachine {
 function Restore-CVVirtualMachine {
 <#
 .SYNOPSIS
-    Method to initiate in-place restore/recovery of specified virtual machine.
+    Method to initiate restore/recovery of specified virtual machine.
 
 .DESCRIPTION
-    Method to initiate in-place restore/recovery of specified virtual machine.
+    Method to initiate restore/recovery of specified virtual machine.
     
+.PARAMETER Id
+    Specify the virtual machine to be restored by GUID.
+
 .PARAMETER Name
-    Virtual machine Name.
+    Specify the virtual machine to be restored by Name.
 
 .PARAMETER ClientName
-    Virtual machine associated ClientName.
+    Source virtual machine associated ClientName
 
-.PARAMETER ClientObject
-    Virtual machine associated piped ClientObject.
+.PARAMETER SubclientName
+    Specify SubclientName to override the default behaviour.
 
-.PARAMETER Id
-    Specify Id representing virtual machine GUID.
+.PARAMETER JobId
+    Specify JobId from which to restore.
 
-.PARAMETER Overwrite
-    Switch to Overwrite specified virtual machine.
+.PARAMETER CopyPrecedence
+    Specify CopyPrecedence from which the restore should occur: Primary, secondary or cloud.
+
+.PARAMETER PowerOnAfterRestore
+    Switch to PowerOnAfterRestore.
+
+.PARAMETER OverwriteExisting
+    Switch to OverwriteExisting.
+
+.PARAMETER RestoreType
+    Specify RestoreType: FullVirtualMachine or VirtualMachineFiles.
+
+.PARAMETER OutofPlace
+    Switch to create an out-of-place virtual machine restore.
+
+.PARAMETER DestHypervisorType
+    Specify DestHypervisorType: vmware or hyperv.
 
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
@@ -1234,10 +1266,10 @@ function Restore-CVVirtualMachine {
     Restore-CVVirtualMachine -Id 502df85e-7fe7-e1d6-8f0a-a9cdadd8c13e
 
 .EXAMPLE
-    Restore-CVVirtualMachine -ClientName Openstack-V2-client -Name autocs-winvm2
+    Restore-CVVirtualMachine -Name TESTVM12 -ClientName VSAQAVCDR.vsatest.commvault.com -SubclientName VMGroup1 -PowerOnAfterRestore -OverwriteExisting
 
 .EXAMPLE
-    Restore-CVVirtualMachine -ClientName Openstack-V2-client -Name autocs-winvm2 -Overwrite
+    Restore-CVVirtualMachine -Name TESTVM12 -ClientName VSAQAVCDR.vsatest.commvault.com -SubclientName VMGroup1 -PowerOnAfterRestore -OverwriteExisting -OutofPlace
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1247,10 +1279,15 @@ function Restore-CVVirtualMachine {
     Company: Commvault
 #>
     [Alias('Restore-CVVM')]
+    [Alias('Restore-CVVMOut')]
     [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
     [OutputType([PSCustomObject])]
     param(
         [Alias('VMName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [String] $Id,
+
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $Name,
@@ -1259,172 +1296,13 @@ function Restore-CVVirtualMachine {
         [ValidateNotNullorEmpty()]
         [String] $ClientName,
 
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
-        [ValidateNotNullorEmpty()]
-        [String] $Id,
-
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [System.Object] $ClientObject,
 
-        [Switch] $Overwrite,
-        [Switch] $Force
-    )
-
-    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
-
-        try {
-            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
-            $endpointSave = $sessionObj.requestProps.endpoint
-        }
-        catch {
-            throw $_
-        }
-    }
-
-    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
-
-        try {
-            $sessionObj.requestProps.endpoint = $endpointSave
-
-            if ($PSCmdlet.ParameterSetName -eq 'ById') {
-                $vmObj = (Get-CVVirtualMachine -Id $Id)
-                if ($null -eq $vmObj) {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine not found having id [$Id]"
-                    return
-                }
-            }
-            else {
-                if ($PSCmdlet.ParameterSetName -eq 'ByName') {
-                    $clientObj = Get-CVClient -Name $ClientName
-                    if ($null -ne $clientObj) {
-                        $ClientObject = $clientObj
-                    }
-                    else {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$ClientName]"
-                        return
-                    }
-                }
-    
-                $vmObj = ($ClientObject | Get-CVVirtualMachine -Name $Name)
-                if ($null -ne $vmObj) {
-                    if (-not $vmObj.vmStatus -eq 1) { 
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): protected status not found for virtual machine having name [$($vmObj.name)]"
-                        return 
-                    }
-                }
-                else {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine not found having name [$Name]"
-                    return
-                }
-            }
-
-            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
-
-            $restoreObj = @{}
-            $restoreObj.Add('inPlaceRestore', $True)
-            $restoreObj.Add('overwrite', $Overwrite.IsPresent)
-            $restoreObj.Add('vmProps', $vmObj)
-
-            $headerObj = Get-CVRESTHeader $sessionObj
-            $body = (PrepareInPlaceTaskBodyJson $restoreObj).body
-            $payload = @{ }
-            $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
-            $validate = 'taskId'
-
-            if ($Force -or $PSCmdlet.ShouldProcess($vmObj.name)) {
-                $response = Submit-CVRESTRequest $payload $validate
-            }
-            else {
-                $response = Submit-CVRESTRequest $payload $validate -DryRun
-            }
-
-            if ($response.IsValid) {
-                Write-Output $response.Content
-            }
-            else {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): in-place restore request declined for virtual machine [$($vmObj.name)]"
-            }
-        }
-        catch {
-            throw $_
-        }
-    }
-
-    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
-    }
-}
-
-
-function Restore-CVVirtualMachineOutofPlace {
-<#
-.SYNOPSIS
-    Method to initiate out-of-place restore/recovery of specified virtual machine.
-
-.DESCRIPTION
-    Method to initiate out-of-place restore/recovery of specified virtual machine.
-    
-.PARAMETER Name
-    Virtual machine Name.
-
-.PARAMETER ClientName
-    Virtual machine associated ClientName.
-
-.PARAMETER ClientObject
-    Virtual machine associated piped ClientObject.
-
-.PARAMETER Id
-    Specify Id representing virtual machine GUID.
-
-.PARAMETER JobId
-    Specify JobId from which to restore/recover.
-
-.PARAMETER CopyPrecedence
-    Specify CopyPrecedence from which the restore/recovery should occur. Primary, secondary or cloud.
-
-.PARAMETER PowerON
-    Switch to PowerOn restored/recovered virtual machine.
-
-.PARAMETER DestHypervisorType
-    Specify DestHypervisorType: VMware, HyperV, AWS, Azure, OpenStack
-
-.PARAMETER Overwrite
-    Switch to Overwrite specified virtual machine.
-
-.PARAMETER Force
-    Switch to Force override of default 'WhatIf' confirmation behavior.
-
-.EXAMPLE
-    Restore-CVVirtualMachineOutofPlace
-
-.OUTPUTS
-    Outputs [PSCustomObject] containing job submission result.
-
-.NOTES
-    Author: Gary Stoops
-    Company: Commvault
-#>
-    [Alias('Restore-CVVMOut')]
-    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'Medium')]
-    [OutputType([PSCustomObject])]
-    param(
-        [Alias('VMName')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory = $False )]
         [ValidateNotNullorEmpty()]
-        [String] $Name,
-
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
-        [ValidateNotNullorEmpty()]
-        [String] $ClientName,
-
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
-        [ValidateNotNullorEmpty()]
-        [String] $Id,
-
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-        [ValidateNotNullorEmpty()]
-        [System.Object] $ClientObject,
+        [String] $SubclientName,
 
         [Parameter(Mandatory = $False)]   
         [ValidateNotNullorEmpty()]
@@ -1433,14 +1311,15 @@ function Restore-CVVirtualMachineOutofPlace {
         [Parameter(Mandatory = $False)]   
         [CVCopyPrecedence] $CopyPrecedence = 'Primary',
 
+        [Parameter(Mandatory = $False)]
+        [CVVSARestoreType] $RestoreType = 'FullVirtualMachine',
+
         [Parameter(Mandatory = $False)]   
         [CVVSAHyperVisorType] $DestHypervisorType = 'vmware',
 
-        [Parameter(Mandatory = $False)]   
-        [Hashtable] $OutofPlaceRecoveryProps,
-
-        [Switch] $PowerOn,
-        [Switch] $Overwrite,
+        [Switch] $OutofPlace,
+        [Switch] $PowerOnAfterRestore,
+        [Switch] $OverwriteExisting,
         [Switch] $Force
     )
 
@@ -1468,6 +1347,8 @@ function Restore-CVVirtualMachineOutofPlace {
                 }
             }
             else {
+                $subclientObj = $null
+
                 if ($PSCmdlet.ParameterSetName -eq 'ByName') {
                     $clientObj = Get-CVClient -Name $ClientName
                     if ($null -ne $clientObj) {
@@ -1479,47 +1360,156 @@ function Restore-CVVirtualMachineOutofPlace {
                     }
                 }
     
-                $vmObj = ($ClientObject | Get-CVVirtualMachine -Name $Name)
-                if ($null -ne $vmObj) {
-                    if (-not $vmObj.vmStatus -eq 1) { 
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): protected status not found for virtual machine having name [$($vmObj.name)]"
-                        return 
+                if (-not [String]::IsNullOrEmpty($SubclientName)) {
+                    $subclientObj = $ClientObject | Get-CVSubclient -Name $SubclientName
+                    if ($null -eq $subclientObj) { 
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient not found having name [$SubclientName] for client [$ClientName]"      
+                        return
                     }
                 }
-                else {
+                else { # use default subclient
+                    $globalsObj = Get-CVCommCellGlobals 
+                    $SubclientName = $globalsObj.defaultSubclient 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient name not provided...retrieving default subclient"
+                    $subclientObj = $ClientObject | Get-CVSubclient -Name $SubclientName
+                    if ($null -eq $subclientObj) {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient not found having name [$SubclientName]"
+                        return
+                    }
+                }
+        
+                $vmObj = ($ClientObject | Get-CVVirtualMachine -Name $Name)
+                if ($null -eq $vmObj) {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine not found having name [$Name]"
                     return
                 }
-    
             }
-
+                
+            if ($vmObj.vmStatus -ne 1) {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] is not protected"
+                return
+            }
+    
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
 
-            $restoreObj = @{}
-            $restoreObj.Add('inPlaceRestore', $False)
-            $restoreObj.Add('overwrite', $Overwrite.IsPresent)
-            $restoreObj.Add('powerOn', $PowerOn.IsPresent)
-            $restoreObj.Add('hypervisorType', $DestHypervisorType.value__)
-            $restoreObj.Add('vmProps', $vmObj)
-            $restoreObj.Add('clientName', $ClientObj.clientName)
-            if ($JobId -gt 0) { $restoreObj.Add('jobId', $JobId) }
-            $restoreObj.Add('copyPrecedence', $CopyPrecedence.value__)
-            
-            if ($null -ne $OutofPlaceRecoveryProps) {
-                $recoveryProps = ParseOutOfPlaceRestoreOptions -Options $OutofplaceRecoveryProps -HvType $DestHypervisorType 
-                if ($null -ne $recoveryProps) {
-                    $recoveryProps.Add('destinationInfo', $True)
-                    $restoreObj.Add('outofPlaceProps', $recoveryProps)
+            <# request body parameters
+            {
+                "powerOnVmAfterRestore": true,
+                "passUnconditionalOverride": true,
+                "inPlaceRestore": true,
+                "jobId": "string",
+                "copyPrecedence": "string",
+                "destinationClient": {
+                    "clientName": "string"
+                },
+                "vmFileLevelRestoreOptions": {
+                    "sourcePath": [
+                        "string"
+                    ],
+                    "destPath": "string",
+                    "guestCredentials": {
+                        "userName": "string",
+                        "password": "string"
+                    }
+                },
+                "destinationInfo": {
+                    "vmware": {
+                        "esxHost": "string",
+                        "dataStore": "string",
+                        "resourcePool": "string",
+                        "vmfolder": "string",
+                        "newName": "string"
+                    },
+                    "hyperv": {
+                        "Server": "string",
+                        "destinationPath": "string",
+                        "registerwithFailover": "string",
+                        "newName": "string"
+                    }
                 }
+            }
+            #>
+            
+            $parameters = @{}
+            $parameters.Add('passUnconditionalOverride', $OverwriteExisting.IsPresent)
+            $parameters.Add('powerOnVmAfterRestore', $PowerOnAfterRestore.IsPresent)
+            if ($JobId -gt 0) { $restoreObj.Add('jobId', $JobId) }
+            #$parameters.Add('copyPrecedence', $CopyPrecedence.value__) #GRSTODO: job fails with this specified
+    
+            if ($RestoreType -eq 'FullVirtualMachine') {
+                if ($OutofPlace) {
+                    $parameters.Add('inPlaceRestore', $False)
+                    $destinationClient = @{ }
+                    $destinationClient.Add('clientName', (Read-Host 'Destination client'))
+                    $parameters.Add('destinationClient', $destinationClient)
+    
+                    $destinationInfo = @{ }
+                    [System.Collections.ArrayList] $destnationInfo_arr = @()
+                    if ($DestHypervisorType -eq 'vmware') {
+                        $vmware = @{ }
+                        $vmware.Add('esxHost', (Read-Host 'Destination host'))
+                        $vmware.Add('dataStore', (Read-Host 'Datastore'))
+                        $vmware.Add('resourcePool', (Read-Host 'Resource pool'))
+                        $vmware.Add('vmfolder', (Read-Host 'VM folder path'))
+                        $vmware.Add('newName', (Read-Host 'VM display Name'))
+                        $destinationInfo.Add('vmware', $vmware)
+                    }
+                    elseif ($DestHypervisorType -eq 'hyperv') {
+                        $hyperv = @{ }
+                        $hyperv.Add('server', (Read-Host 'Destination client'))
+                        $hyperv.Add('destinationPath', (Read-Host 'Destination folder'))
+                        $response = Read-Host 'Register virtual machine with failover cluster?'
+                        if ($response -ieq 'yes' -or $response -ieq 'y') {
+                            $hyperv.Add('registerwithFailover', $True)
+                        }
+                        else {
+                            $hyperv.Add('registerwithFailover', $False)
+                        }
+                        $hyperv.Add('newName', (Read-Host 'VM display Name'))
+                        $destinationInfo.Add('hyperv', $hyperv)
+                    }
+    
+                    $null = $destnationInfo_arr.Add($destinationInfo)
+                    $parameters.Add('destinationInfo', $destnationInfo_arr)
+                }
+                else {
+                    $parameters.Add('inPlaceRestore', $True)
+                }
+            }
+            elseif ($RestoreType -eq 'VirtualMachineFiles') { # out-of-place restores for each virtual disk
+                $vmFileLevelRestoreOptions = @{ }
+                [System.Collections.ArrayList] $sourcePath_arr = @()
+                $done = $False
+                do {
+                    $path = Read-Host 'Source path'
+                    if (-not[String]::IsNullOrEmpty($path)) {
+                        $null = $sourcePath_arr.Add($path)
+                    }
+                    else {
+                        $done = $True
+                    }
+                } until ($done)
+                $vmFileLevelRestoreOptions.Add('sourcePath', $sourcePath_arr)
+                $vmFileLevelRestoreOptions.Add('destPath', (Read-Host 'Destination path'))
+                $guestCredentials = @{ }
+                $guestCredentials.Add('userName', (Read-Host 'Guest user name'))
+                [SecureString] ${password}
+                $password = Read-Host 'Guest password' -AsSecureString
+                $guestCredentials.Add('password', $password)
+                $vmFileLevelRestoreOptions.Add('guestCredentials', $guestCredentials)
+                $parameters.Add('vmFileLevelRestoreOptions', $vmFileLevelRestoreOptions)
+            }
+            else {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): restore type [$RestoreType] is not currently supported"
             }
 
             $headerObj = Get-CVRESTHeader $sessionObj
-            $body = (PrepareOutofPlaceTaskBodyJson $restoreObj).body
+            $body = $parameters | ConvertTo-Json -Depth 10
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
-            
+
             if ($Force -or $PSCmdlet.ShouldProcess($vmObj.name)) {
                 $response = Submit-CVRESTRequest $payload $validate
             }
@@ -1531,7 +1521,7 @@ function Restore-CVVirtualMachineOutofPlace {
                 Write-Output $response.Content
             }
             else {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): out-of-place restore request declined for virtual machine [$($vmObj.name)]"
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): restore request declined for virtual machine [$($vmObj.name)]"
             }
         }
         catch {
@@ -2076,358 +2066,6 @@ function PrepareBackupTaskBodyJson ([Hashtable] $jobObj, [String] $VMGuid) {
         $body = $createTaskReq | ConvertTo-Json -Depth 10
         return @{ 'body' = $body }
     }
-    catch {
-        throw $_
-    }
-}
-
-
-<# PrepareInPlaceTaskBodyJson
-{
-    "taskInfo": {
-        "associations": [
-            {
-                "subclientId": 237,
-                "applicationId": 106,
-                "clientName": "TestVapp__34de6bd6-46db-4f2f-b228-5f37f0106258_",
-                "clientId": 715
-            }
-        ],
-        "task": {},
-        "subTasks": [
-            {
-                "subTask": {
-                    "subTaskType": 3,
-                    "operationType": 1001
-                },
-                "options": {
-                    "restoreOptions": {
-                        "virtualServerRstOption": {
-                            "isDiskBrowse": true,
-                            "diskLevelVMRestoreOption": {
-                                "passUnconditionalOverride": false,
-                                "useVcloudCredentials": true,
-                                "endUserVMRestore": true,
-                                "vmClientId": 0,
-                                "vmName": "TestVapp_AdminConsole_K1",
-                                "powerOnVmAfterRestore": true,
-                                "advancedRestoreOptions": [
-                                    {
-                                        "newName": "TestVapp_AdminConsole_K1",
-                                        "name": "TestVapp__34de6bd6-46db-4f2f-b228-5f37f0106258_",
-                                        "guid": "502d33a1-53ad-487b-6780-0248334cd2fd"
-                                    }
-                                ]
-                            }
-                        },
-                        "volumeRstOption": {
-                            "volumeLevelRestoreType": 1
-                        },
-                        "browseOption": {
-                            "commCellId": 2,
-                            "backupset": {
-                                "clientId": 715
-                            },
-                            "timeRange": {}
-                        },
-                        "destination": {
-                            "inPlace": false,
-                            "destClient": {
-                                "clientId": 9
-                            }
-                        },
-                        "fileOption": {
-                            "sourceItem": [
-                                "\\502d33a1-53ad-487b-6780-0248334cd2fd"
-                            ]
-                        }
-                    }
-                }
-            }
-        ]
-    }
-}
-#>
-function PrepareInPlaceTaskBodyJson ([HashTable] $RestoreObject) {
-
-    try {
-        if ($null -ne $RestoreObject -and $null -ne $RestoreObject.vmProps) {
-            $sessionObj = Get-CVSessionDetail 'InplaceRecover-VMDetails'
-            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $RestoreObject.vmProps.strGUID)
-
-            $headerObj = Get-CVRESTHeader $sessionObj
-            $body = ''
-            $payload = @{ }
-            $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
-            $validate = 'vmStatusInfoList'
-            
-            $response = Submit-CVRESTRequest $payload $validate
-
-            if ($response.IsValid) {
-                #root element
-                $rootElement = [ordered]@{ }
-                $taskInfo = [ordered]@{ }
-                #Associations
-                [System.Collections.ArrayList] $associations_arr = @()
-                $associationsdict = @{ }
-                $associationsdict.Add('subclientId', $response.Content.vmStatusInfoList.subclientId)
-                $associationsdict.Add('applicationId', 106)
-                $associationsdict.Add('clientName', $response.Content.vmStatusInfoList.pseudoClient.clientName)
-                $associationsdict.Add('clientId', $response.Content.vmStatusInfoList.pseudoClient.clientId)
-                $null = $associations_arr.Add($associationsdict)
-                
-                $task = [ordered]@{ }
-
-                #subtasks
-                $subTasks = [ordered]@{ }
-                [System.Collections.ArrayList] $subTasks_arr = @()
-                $subTask = [ordered]@{ }
-                $subTask.Add('subTaskType', 3)
-                $subTask.Add('operationType', 101)
-                $subTasks.Add('subTask', $subTask)
-
-                #options
-                $options = [ordered]@{ }
-                $restoreOptions = [ordered]@{ }
-                $virtualServerRstOption = @{ }
-                $virtualServerRstOption.Add('isDiskBrowse', $True)
-                $diskLevelVMRestoreOption = @{ }
-                $diskLevelVMRestoreOption.Add('passUnconditionalOverride', $Overwrite) #unconditional overwrite Flag
-                $diskLevelVMRestoreOption.Add('useVcloudCredentials', $False)
-                $diskLevelVMRestoreOption.Add('endUserVMRestore', $True)
-                $diskLevelVMRestoreOption.Add('vmClientId', 0)
-                $diskLevelVMRestoreOption.Add('vmName', $response.Content.vmStatusInfoList.name)
-                $diskLevelVMRestoreOption.Add('powerOnVmAfterRestore', $True)
-
-                [System.Collections.ArrayList] $advancedRestoreOptions_arr = @()
-                $advancedRestoreOptions = @{ }
-                $advancedRestoreOptions.Add('newName', $response.Content.vmStatusInfoList.name)
-                $advancedRestoreOptions.Add('name', $response.Content.vmStatusInfoList.name)
-                $advancedRestoreOptions.Add('guid', $response.Content.vmStatusInfoList.strGUID)
-                $null = $advancedRestoreOptions_arr.Add($advancedRestoreOptions)
-                $diskLevelVMRestoreOption.Add('advancedRestoreOptions', $advancedRestoreOptions_arr)
-                
-                $virtualServerRstOption.Add('diskLevelVMRestoreOption', $diskLevelVMRestoreOption)
-                
-                $restoreOptions.Add('virtualServerRstOption', $virtualServerRstOption)
-
-                #VolumeRstOption
-                $volumeRstOption = @{ }
-                $volumeRstOption.Add('volumeLevelRestoreType', 1)
-                
-                $restoreOptions.Add('volumeRstOption', $volumeRstOption)
-
-                #browseOption
-                $browseOption = @{ }
-                #Commcell ID
-                $globalObj = Get-CVCommCellGlobals
-                $browseOption.Add('commCellId', $globalObj.commCellId)
-                $backupset = @{ }
-                $backupset.Add('clientId', $response.Content.vmStatusInfoList.pseudoClient.clientId)
-                $browseOption.Add('backupset', $backupset)
-                $timeRange = @{ }
-                $browseOption.Add('timeRange', $timeRange)
-
-                $restoreOptions.Add('browseOption', $browseOption)
-
-                #destination
-                $destination = @{ }
-                #Inplace flag
-                $destination.Add('inPlace', $RestoreObject.inPlaceRestore)
-                $destClient = @{ }
-                $destClient.Add('clientId', $response.Content.vmStatusInfoList.proxyClient.clientId)
-                $destination.Add('destClient', $destClient)
-
-                $restoreOptions.Add('destination', $destination)
-
-                #fileOption
-                $fileOption = @{ }
-                [System.Collections.ArrayList] $sourceItem_arr = @()
-                $path = '\\' + $response.Content.vmStatusInfoList.strGUID
-                $null = $sourceItem_arr.Add($path)
-                $fileOption.Add('fileOption', $sourceItem_arr)
-
-                $restoreOptions.Add('fileOption', $fileOption)
-                
-                $options.Add('restoreOptions', $restoreOptions)
-            
-                $subTasks.Add('options', $options)
-
-                $null = $subTasks_arr.Add($subTasks)
-                
-                $taskInfo.Add('associations', $associations_arr)
-                $taskInfo.Add('task', $task)
-                $taskInfo.Add('subTasks', $subTasks_arr)
-
-                $rootElement.Add('taskInfo', $taskInfo)
-        
-                #End of Json prep
-                $body = $rootElement | ConvertTo-Json -Depth 10
-                return @{ 'body' = $body }
-            }
-            else {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine details not found for GUID [$($vmObj.strGUID)]"      
-            }
-        }
-        else {
-            return $null
-        }
-    }
-    catch {
-        throw $_
-    }
-}
-
-
-# Method validates the user input for out-of-place Restores and returns the map with values needed for out of place
-function ParseOutOfPlaceRestoreOptions([HashTable] $Options, [CVVSAHyperVisorType] $HvType) {
-    
-    try {
-        $restoreOptions = @{ }
-    
-        if ($HvType -eq 'vmware') { #VMware specific code
-            if ($null -ne $Options) {
-                $restoreOptions.Add('destinationInfo', $True)
-                if ($Options.esxHost) { $restoreOptions.Add('esxHost', $Options.esxHost) }
-                if ($Options.esxHost) { $restoreOptions.Add('dataStore', $Options.dataStore) }
-                if ($Options.esxHost) { $restoreOptions.Add('resourcePool', $Options.resourcePool) }
-                if ($Options.esxHost) { $restoreOptions.Add('vmfolder', $Options.vmfolder) }
-                if ($Options.esxHost) { $restoreOptions.Add('newName', $Options.newName) }
-            }
-            if ($Options.vmFileLevelRestoreOptions) { $restoreOptions.Add('vmFileLevelRestoreOptions', $True) }
-        }
-    
-        return $restoreOptions
-    }
-    catch {
-        throw $_
-    }
-}
-
-
-<# PrepareOutofPlaceTaskBodyJson
-{
-    "powerOnVmAfterRestore": "string",
-    "passUnconditionalOverride": "string",
-    "inPlaceRestore": "string",
-    "JobId": "string",
-    "copyPrecedence": "string",
-    "destinationClient": {
-        "clientName": "string"
-    },
-    "vmFileLevelRestoreOptions": {
-        "sourcePath": [
-            "string"
-        ],
-        "destPath": "string",
-        "guestCredentials": {
-            "userName": "string",
-            "password": "string"
-        }
-    },
-    "destinationInfo": [
-        {
-            "vmware": {
-                "esxHost": "string",
-                "dataStore": "string",
-                "resourcePool": "string",
-                "vmfolder": "string",
-                "newName": "string"
-            },
-            "hyperv": {
-                "Server": "string",
-                "destinationPath": "string",
-                "registerwithFailover": "string",
-                "newName": "string"
-            }
-        }
-    ]
-}
-#>
-function PrepareOutofPlaceTaskBodyJson ([HashTable] $RestoreObject) {
-
-    try {
-        if ($RestoreObject) {
-            $inPlaceFlag = $False
-            $VMProp = $RestoreObject.VMProp
-            $Overwrite = [System.Convert]::ToBoolean($RestoreObject.Overwrite)
-            $powerState = [System.Convert]::ToBoolean($RestoreObject.powerOn)
-            $taskInfo = [ordered]@{ }
-            if (-not $RestoreObject.JobId -eq $null) {
-                $JobId = [System.Convert]::ToInt16($RestoreObject.JobId)
-            }
-            
-            $taskInfo.Add('powerOnVmAfterRestore', $powerState)
-            $taskInfo.Add('passUnconditionalOverride', $Overwrite)
-            $taskInfo.Add('inPlaceRestore', $inPlaceFlag)
-            if ($JobId)
-            { $taskInfo.Add('JobId', $JobId) }
-            if (-not $RestoreObject.CopyPrecedence -eq 0) {
-                $copyNumber = [System.Convert]::ToInt16($RestoreObject.CopyPrecedence)
-                $taskInfo.Add('copyPrecedence', $copyNumber)
-            }
-
-            $destinationClient = @{ }
-            $destinationClient.Add('clientName', $RestoreObject.ClientName)
-            $taskInfo.Add('destinationClient', $destinationClient)
-            if ($RestoreObject.ContainsKey('OutofPlaceProps')) {
-                if ($RestoreObject.OutofPlaceProps.vmFileLevelRestoreOptions) {
-                    ##Out of place restores for each virtual disk
-                    $vmFileLevelRestoreOptions = @{ }
-                    [System.Collections.ArrayList] $sourcePath_arr = @()
-                    $null = $sourcePath_arr.Add($RestoreObject.OutofPlaceProps.sourcePath)
-                    $vmFileLevelRestoreOptions.Add('sourcePath', $sourcePath_arr)
-                    $vmFileLevelRestoreOptions.Add('destPath', $RestoreObject.OutofPlaceProps.destPath)
-                    $guestCredentials = @{ }
-                    $guestCredentials.Add('userName', $RestoreObject.OutofPlaceProps.guestUser)
-                    $guestCredentials.Add('password', $RestoreObject.OutofPlaceProps.guestPwd)
-                    $vmFileLevelRestoreOptions.Add('guestCredentials', $guestCredentials)
-                    $taskInfo.Add('vmFileLevelRestoreOptions', $vmFileLevelRestoreOptions)
-                }
-
-                if ($RestoreObject.OutofPlaceProps.destinationInfo) {
-                    ##Add any hypervisor specific values for the restore
-                    $destinationInfo = @{ }
-                    [System.Collections.ArrayList] $destnationInfo_arr = @()
-                    if ($RestoreObject.hypervisorType -eq 101) {
-                        $vmware = @{ }
-                        $vmware.Add('esxHost', $RestoreObject.OutofPlaceProps.esxHost)
-                        $vmware.Add('dataStore', $RestoreObject.OutofPlaceProps.dataStore)
-                        $vmware.Add('resourcePool', $RestoreObject.OutofPlaceProps.resourcePool)
-                        $vmware.Add('vmfolder', $RestoreObject.OutofPlaceProps.vmfolder)
-                        $vmware.Add('newName', $RestoreObject.OutofPlaceProps.newName)
-                        $destinationInfo.Add('vmware', $vmware)
-                    }
-                    
-            
-                    if ($RestoreObject.hypervisorType -eq 102) {
-                        $hyperv = @{ }
-                        $hyperv.Add('server', $RestoreObject.OutofPlaceProps.Server)
-                        $hyperv.Add('destinationPath', $RestoreObject.OutofPlaceProps.destinationPath)
-                        $hyperv.Add('resourcePool', $RestoreObject.OutofPlaceProps.resourcePool)
-                        $hyperv.Add('registerwithFailover', $RestoreObject.OutofPlaceProps.registerwithFailover)
-                        $hyperv.Add('newName', $RestoreObject.OutofPlaceProps.newName)
-                        $destinationInfo.Add('hyperv', $hyperv)
-                    }
-                    $null = $destnationInfo_arr.Add($destinationInfo)
-                    $taskInfo.Add('destinationInfo', $destnationInfo_arr)
-                }
-
-                #End of Json prep
-                $body = $taskInfo | ConvertTo-Json -Depth 10
-                return @{ 'body' = $body }
-            }
-            else {
-                Write-Error("Error - VMproperty object found null " + $VMProp)
-            
-            }
-            #End of Json prep
-            $body = $taskInfo | ConvertTo-Json -Depth 10
-            return @{ 'body' = $body }
-
-        }#End of if ($RestoreObj)
-    }#End of Try
     catch {
         throw $_
     }

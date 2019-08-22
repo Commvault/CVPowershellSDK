@@ -1260,37 +1260,37 @@ function Export-CVSQLDatabaseRTD {
     Method to submit restore-to-disk SQL database export job.
     
 .PARAMETER Name
-    Export the SQL database files for database Name.
+    Specify the database files to be exported by database Name.
 
 .PARAMETER DatabaseObject
-    Export the SQL database files for DatabaseObject.
-
-.PARAMETER DestClientName
-    Redirect the SQL database files to DestClientName.
-
-.PARAMETER DestDiskPath
-    Export the SQL database files to DestDiskPath.
+    Specify the database files to be exported by piping DatabaseObject.
 
 .PARAMETER JobId
     Export the SQL database files for a given JobId.
 
-.PARAMETER OverwriteFiles
-    Flag to allow OverwriteFiles.
+.PARAMETER DestClientName
+    Export the SQL database files to DestClientName.
+
+.PARAMETER DestDiskPath
+    Export the SQL database files to DestDiskPath.
+
+.PARAMETER OverwriteExisting
+    Switch to control OverwriteExisting of the database files.
 
 .EXAMPLE
     Export-CVSQLDatabaseRTD
 
 .EXAMPLE
-    Export-CVSQLDatabaseRTD -Name CommServ -DestDiskPath C:\ExportDir -OverwriteFiles
+    Export-CVSQLDatabaseRTD -Name CommServ -OverwriteExisting
 
 .EXAMPLE
-    Export-CVSQLDatabaseRTD -Name CommServ -DestDiskPath C:\ExportDir -OverwriteFiles -JobId 111
+    Export-CVSQLDatabaseRTD -Name CommServ -OverwriteExisting -JobId 111
 
 .EXAMPLE
-    Export-CVSQLDatabaseRTD -Name CommServ -DestClientName redirectClient -DestDiskPath F:\ExportDir -OverwriteFiles
+    Export-CVSQLDatabaseRTD -Name CommServ -DestClientName carbonwincs1 -DestDiskPath C:\ExportTest
 
 .EXAMPLE
-    Get-CVSQLDatabase | Export-CVSQLDatabaseRTD -DestDiskPath C:\ExportDir -OverwriteFiles    
+    Get-CVSQLDatabase -Name AuditDB | Export-CVSQLDatabaseRTD -OverwriteExisting -DestClientName carbonwincs1 -DestDiskPath C:\ExportTest
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1306,23 +1306,23 @@ function Export-CVSQLDatabaseRTD {
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
-        [Parameter(Mandatory = $False, ParameterSetName = 'ByName')]
-        [ValidateNotNullorEmpty()]
-        [String] $DestClientName,
-
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [System.Object] $DatabaseObject,
-
-        [Parameter(Mandatory = $True)]
-        [ValidateNotNullorEmpty()]
-        [String] $DestDiskPath,
 
         [Parameter(Mandatory = $False)]
         [ValidateNotNullorEmpty()]
         [Int32] $JobId,
 
-        [Switch] $OverwriteFiles
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullorEmpty()]
+        [String] $DestClientName,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullorEmpty()]
+        [String] $DestDiskPath,
+
+        [Switch] $OverwriteExisting
     )
 
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
@@ -1352,13 +1352,13 @@ function Export-CVSQLDatabaseRTD {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): database not found having name [$Name]"      
                     return
                 }
+            }
 
-                if (-not [String]::IsNullOrEmpty($DestClientName)) {
-                    $clientObj = Get-CVSQLClientDetail -Name $DestClientName
-                    if ($null -eq $clientObj) { 
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$DestClientName]"      
-                        return
-                    }
+            if (-not[String]::IsNullOrEmpty($DestClientName)) {
+                $clientObj = Get-CVSQLClientDetail -Name $DestClientName
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$DestClientName]"      
+                    return
                 }
             }
 
@@ -1369,19 +1369,29 @@ function Export-CVSQLDatabaseRTD {
             $headerObj = Get-CVRESTHeader $sessionObj
             
             $body = @{}
-            $body.Add('overwriteFiles', $OverwriteFiles.IsPresent)
-            $body.Add('destDiskPath', $DestDiskPath)
-            $destClient = @{}
-            if ($null -ne $clientObj) {
-                $destClient.Add('clientId', $clientObj.cId)
-                $destClient.Add('clientName', $clientObj.cName)
+            $body.Add('overwriteFiles', $OverwriteExisting.IsPresent)
+
+            $destEntity = @{}
+            if ($null -eq $clientObj) {
+                do {
+                    $destClientName = Read-Host 'Destination client name'
+                    $clientObj = Get-CVSQLClientDetail -Name $destClientName
+                    if ($null -eq $clientObj) { 
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$destClientName]"      
+                        Start-Sleep -Seconds 1.5
+                    }
+                } until ($null -ne $clientObj)
+            }
+
+            $destEntity.Add('clientId', $clientObj.cId)
+            $body.Add('destinationEntity', $destEntity)
+            if (-not[String]::IsNullOrEmpty($DestDiskPath)) {
+                $body.Add('destDiskPath', $DestDiskPath)
             }
             else {
-                $destClient.Add('clientId', $DatabaseObject.cId)
-                $destClient.Add('clientName', $DatabaseObject.cName)
+                $body.Add('destDiskPath', (Read-Host 'Destination disk path'))
             }
-            $body.Add('destinationClient', $destClient)
-            $body.Add('copyPrecedence', 0)
+
             $body = ($body | ConvertTo-Json)
             
             $payload = @{}
@@ -1412,25 +1422,37 @@ function Export-CVSQLDatabaseRTD {
 function Restore-CVSQLDatabase { 
 <#
 .SYNOPSIS
-    Method to submit SQL database restore job.
+    Method to submit SQL database in-place or out-of-place restore job.
 
 .DESCRIPTION
-    Method to submit SQL database restore job.
+    Method to submit SQL database in-place or out-of-place restore job.
     
 .PARAMETER Name
-    Restore the SQL database files for database Name.
+    Specify the database files to be restored by database Name.
 
 .PARAMETER DatabaseObject
-    Restore the SQL database files for DatabaseObject.
+    Specify the database files to be restored by piping DatabaseObject.
 
 .PARAMETER DestClientName
-    Redirect the SQL database files to DestClientName.
+    Restore out-of-place the SQL database files to DestClientName.
 
-.PARAMETER DestDiskPath
-    Restore the SQL database files to DestDiskPath.
+.PARAMETER DestInstanceName
+    Restore out-of-place the SQL database files to DestInstanceName.
 
-.PARAMETER OverwriteFiles
-    Flag to allow OverwriteFiles.
+.PARAMETER DestDatabaseName
+    Restore out-of-place the SQL database files to DestDatabaseName.
+
+.PARAMETER DataFilePath
+    Restore out-of-place the SQL database data files to DataFilePath.
+
+.PARAMETER LogFilePath
+    Restore out-of-place the SQL database log files to LogFilePath.
+
+.PARAMETER OutofPlace
+    Switch to initiate an out-of-place restore.
+
+.PARAMETER OverwriteExisting
+    Switch to control OverwriteExisting of the database files.
 
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
@@ -1439,13 +1461,10 @@ function Restore-CVSQLDatabase {
     Restore-CVSQLDatabase
 
 .EXAMPLE
-    Restore-CVSQLDatabase -Name AuditDB -OverwriteFiles
+    Restore-CVSQLDatabase -Name AuditDB -OverwriteExisting
 
 .EXAMPLE
-    Restore-CVSQLDatabase -Name AuditDB -DestClientName redirectClient -DestDiskPath F:\redirectDir -OverwriteFiles
-
-.EXAMPLE
-    Get-CVSQLDatabase | Restore-CVSQLDatabase -DestClientName redirectClient -DestDiskPath F:\redirectDir -OverwriteFiles
+    Restore-CVSQLDatabase -Name AuditDB -OverwriteExisting -OutofPlace
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1461,19 +1480,32 @@ function Restore-CVSQLDatabase {
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
-        [Parameter(Mandatory = $False, ParameterSetName = 'ByName')]
-        [ValidateNotNullorEmpty()]
-        [String] $DestClientName,
-
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [System.Object] $DatabaseObject,
 
         [Parameter(Mandatory = $False)]
         [ValidateNotNullorEmpty()]
-        [String] $DestDiskPath,
+        [String] $DestClientName,
 
-        [Switch] $OverwriteFiles,
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullorEmpty()]
+        [String] $DestInstanceName,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullorEmpty()]
+        [String] $DestDatabaseName,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullorEmpty()]
+        [String] $DataFilePath,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullorEmpty()]
+        [String] $LogFilePath,
+
+        [Switch] $OutofPlace,
+        [Switch] $OverwriteExisting,
         [Switch] $Force
     )
 
@@ -1503,13 +1535,23 @@ function Restore-CVSQLDatabase {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): database not found having name [$Name]"      
                     return
                 }
+            }
 
-                if (-not [String]::IsNullOrEmpty($DestClientName)) {
-                    $clientObj = Get-CVSQLClientDetail -Name $DestClientName
-                    if ($null -eq $clientObj) { 
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$DestClientName]"      
-                        return
-                    }
+            $clientObj = $null
+            if (-not[String]::IsNullOrEmpty($DestClientName)) {
+                $clientObj = Get-CVSQLClientDetail -Name $DestClientName
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$DestClientName]"      
+                    return
+                }
+            }
+
+            $instanceObj = $null
+            if (-not[String]::IsNullOrEmpty($DestInstanceName)) {
+                $instanceObj = Get-CVSQLInstance -Name $DestInstanceName
+                if ($null -eq $instanceObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination instance not found having name [$DestInstanceName]"      
+                    return
                 }
             }
 
@@ -1519,19 +1561,61 @@ function Restore-CVSQLDatabase {
             $headerObj = Get-CVRESTHeader $sessionObj
             
             $body = @{}
-            $body.Add('overwriteFiles', $OverwriteFiles.IsPresent)
-            $body.Add('destDiskPath', $DestDiskPath)
-            $destClient = @{}
-            if ($null -ne $clientObj) {
-                $destClient.Add('clientId', $clientObj.cId)
-                $destClient.Add('clientName', $clientObj.cName)
+            $body.Add('overwriteFiles', $OverwriteExisting.IsPresent)
+
+            $destEntity = @{}
+            if ($OutofPlace) {
+                if ($null -eq $clientObj) {
+                    do {
+                        $destClientName = Read-Host 'Destination client name'
+                        $clientObj = Get-CVSQLClientDetail -Name $destClientName
+                        if ($null -eq $clientObj) { 
+                            Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$destClientName]"      
+                            Start-Sleep -Seconds 1.5
+                        }
+                    } until ($null -ne $clientObj)
+                }
+
+                if ($null -eq $instanceObj) {
+                    do {
+                        $destInstanceName = Read-Host 'Destination instance name'
+                        $instanceObj = Get-CVSQLInstance -Name $destInstanceName
+                        if ($null -eq $instanceObj) { 
+                            Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination instance not found having name [$destInstanceName]"      
+                            Start-Sleep -Seconds 1.5
+                        }
+                    } until ($null -ne $instanceObj)
+                }
+
+                $destEntity.Add('clientId', $clientObj.cId)
+                $destEntity.Add('instanceId', $instanceObj.insId)
+
+                if (-not[String]::IsNullOrEmpty($DestDatabaseName)) {
+                    $body.Add('destinationDatabaseName', $DestDatabaseName)
+                }
+                else {
+                    $body.Add('destinationDatabaseName', (Read-Host 'Destination database name'))
+                }
+
+                if (-not[String]::IsNullOrEmpty($DataFilePath)) {
+                    $body.Add('dataFilePath', $DataFilePath)
+                }
+                else {
+                    $body.Add('dataFilePath', (Read-Host 'Data file path'))
+                }
+
+                if (-not[String]::IsNullOrEmpty($LogFilePath)) {
+                    $body.Add('logFilePath', $LogFilePath)
+                }
+                else {
+                    $body.Add('logFilePath', (Read-Host 'Log file path'))
+                }
             }
             else {
-                $destClient.Add('clientId', $DatabaseObject.cId)
-                $destClient.Add('clientName', $DatabaseObject.cName)
+                $destEntity.Add('clientId', $DatabaseObject.cId)
             }
-            $body.Add('destinationClient', $destClient)
-            $body.Add('copyPrecedence', 0)
+            $body.Add('destinationEntity', $destEntity)
+
             $body = ($body | ConvertTo-Json)
             
             $payload = @{}
@@ -1585,7 +1669,7 @@ function Mount-CVSQLDatabase {
     Mount the SQL database with ExpireDays. Default: 30
 
 .PARAMETER OverwriteDatabase
-    Flag to allow OverwriteDatabase.
+    Switch to control OverwriteDatabase.
 
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.

@@ -330,8 +330,8 @@ function ValidateResponse ([HashTable] $Response, [PSCustomObject] $Output, [Str
         }
         else {
             $errorMessage =  "`nStatus: $($Response.Status)"
-            $errorMessage += "`nError: $($Response.Error)"
-            $errorMessage += "`nErrorDetail: $($Response.ErrorDetail)"
+            $errorMessage += "`nMessage: $($Response.Message)"
+            $errorMessage += "`nErrorMessage: $($Response.ErrorMessage)"
             $errorMessage += "`nRecommendedAction: $($Response.RecommendedAction)"
             Write-Error -Message $errorMessage
         }
@@ -423,8 +423,8 @@ function ProcessRequest ([HashTable] $Header, [String] $Body, [String] $BaseUrl,
         $url = "$BaseUrl$Endpoint"
 
         $output.Add('Status', '')
-        $output.Add('Error', '')
-        $output.Add('ErrorDetail', '')
+        $output.Add('Message', '')
+        $output.Add('ErrorMessage', '')
         $output.Add('RecommendedAction', '')
         $output.Add('Body', $null)
 
@@ -446,13 +446,10 @@ function ProcessRequest ([HashTable] $Header, [String] $Body, [String] $BaseUrl,
     }
     catch {
         if (HasProperty $_.Exception 'Status') { $output['Status'] = $_.Exception.Status }
-        if (HasProperty $_.Exception 'Message') { $output['Error'] = $_.Exception.Message }
-        if (HasProperty $_.Exception 'ErrorDetails') {
-            if (HasProperty $_.Exception.ErrorDetails 'Message') { $output['ErrorDetail'] = $_.Exception.ErrorDetails.Message }
-            if (HasProperty $_.Exception.ErrorDetails 'RecommendedAction') { $output['RecommendedAction'] = $_.Exception.ErrorDetails.RecommendedAction }
-        }
-        if ($output['RecommendedAction'] -eq '' -and $output['Error'] -eq 'The remote server returned an error: (500) Internal Server Error.') {
-            $output['RecommendedAction'] = 'The Commvault REST API used by this method may require a higher service pack level.'
+        if (HasProperty $_.Exception 'Message') { $output['Message'] = $_.Exception.Message }
+        if ((HasProperty $_ 'ErrorDetails') -and ($null -ne $_.ErrorDetails)) {
+            if (HasProperty $_.ErrorDetails 'Message') { $output['ErrorMessage'] = $_.ErrorDetails.Message }
+            if (HasProperty $_.ErrorDetails 'RecommendedAction') { $output['RecommendedAction'] = $_.ErrorDetails.RecommendedAction }
         }
     }
     finally {
