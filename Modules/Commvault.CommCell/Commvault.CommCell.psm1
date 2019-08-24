@@ -803,7 +803,15 @@ function Get-CVSubclient {
             
             if ($PSCmdlet.ParameterSetName -eq 'ByClientObject') {
                 if ($processCount -eq 0) {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no subclients found for client [$($ClientObject.clientName)]"
+                    if (-not [String]::IsNullOrEmpty($Name)) {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient not found having name [$Name] for client [$($ClientObject.clientName)]"
+                    }
+                    elseif ($Id -gt 0) {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient not found having id [$Id] for client [$($ClientObject.clientName)]"
+                    }
+                    else {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no subclients found for client [$($ClientObject.clientName)]"
+                    }
                 }
                 else {
                     $processCount = 0

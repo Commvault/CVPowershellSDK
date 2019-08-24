@@ -1315,13 +1315,143 @@ function Restore-CVVirtualMachine {
         [CVVSARestoreType] $RestoreType = 'FullVirtualMachine',
 
         [Parameter(Mandatory = $False)]   
-        [CVVSAHyperVisorType] $DestHypervisorType = 'vmware',
+        [CVVSAHyperVisorType] $HypervisorType = 'vmware',
 
         [Switch] $OutofPlace,
         [Switch] $PowerOnAfterRestore,
         [Switch] $OverwriteExisting,
         [Switch] $Force
     )
+
+    DynamicParam {
+        $paramDictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+
+        Set-StrictMode -Off
+
+        if ($OutofPlace) {
+            if ($null -eq $RestoreType -or $RestoreType -eq 'FullVirtualMachine') { # default
+                $destHypervisorAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                $destHypervisorAttr = New-Object System.Management.Automation.ParameterAttribute
+                $destHypervisorAttr.Mandatory = $true
+                $destHypervisorAttr.HelpMessage = 'restore destination hypervisor'
+                $destHypervisorAttrColl.Add($destHypervisorAttr)
+                $destHypervisorParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestHypervisor', [String], $destHypervisorAttrColl)
+                $paramDictionary.Add('DestHypervisor', $destHypervisorParam)
+    
+                if ($null -eq $HypervisorType -or $HypervisorType -eq 'vmware') { # default
+                    $destHostAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $destHostAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $destHostAttr.Mandatory = $true
+                    $destHostAttr.HelpMessage = 'out-of-place restore destination host'
+                    $destHostAttrColl.Add($destHostAttr)
+                    $destHostParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestHost', [String], $destHostAttrColl)
+                    $paramDictionary.Add('DestHost', $destHostParam)
+    
+                    $dataStoreAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $dataStoreAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $dataStoreAttr.Mandatory = $true
+                    $dataStoreAttr.HelpMessage = 'out-of-place restore datastore'
+                    $dataStoreAttrColl.Add($dataStoreAttr)
+                    $dataStoreParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DataStore', [String], $dataStoreAttrColl)
+                    $paramDictionary.Add('DataStore', $dataStoreParam)
+    
+                    $resourcePoolAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $resourcePoolAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $resourcePoolAttr.Mandatory = $true
+                    $resourcePoolAttr.HelpMessage = 'out-of-place restore resource pool'
+                    $resourcePoolAttrColl.Add($resourcePoolAttr)
+                    $resourcePoolParam = New-Object System.Management.Automation.RuntimeDefinedParameter('ResourcePool', [String], $resourcePoolAttrColl)
+                    $paramDictionary.Add('ResourcePool', $resourcePoolParam)
+    
+                    $vmFolderAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $vmFolderAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $vmFolderAttr.Mandatory = $true
+                    $vmFolderAttr.HelpMessage = 'out-of-place restore VM folder path'
+                    $vmFolderAttrColl.Add($vmFolderAttr)
+                    $vmFolderParam = New-Object System.Management.Automation.RuntimeDefinedParameter('VMFolder', [String], $vmFolderAttrColl)
+                    $paramDictionary.Add('VMFolder', $vmFolderParam)
+    
+                    $vmDisplayNameAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $vmDisplayNameAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $vmDisplayNameAttr.Mandatory = $true
+                    $vmDisplayNameAttr.HelpMessage = 'restore VM display name'
+                    $vmDisplayNameAttrColl.Add($vmDisplayNameAttr)
+                    $vmDisplayNameParam = New-Object System.Management.Automation.RuntimeDefinedParameter('VMDisplayName', [String], $vmDisplayNameAttrColl)
+                    $paramDictionary.Add('VMDisplayName', $vmDisplayNameParam)
+                }
+                elseif ($HypervisorType -eq 'hyperv') {
+                    $destClientAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $destClientAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $destClientAttr.Mandatory = $true
+                    $destClientAttr.HelpMessage = 'out-of-place restore destination client'
+                    $destClientAttrColl.Add($destClientAttr)
+                    $destClientParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestClient', [String], $destClientAttrColl)
+                    $paramDictionary.Add('DestClient', $destClientParam)
+    
+                    $destFolderAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $destFolderAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $destFolderAttr.Mandatory = $true
+                    $destFolderAttr.HelpMessage = 'out-of-place restore destination folder'
+                    $destFolderAttrColl.Add($destFolderAttr)
+                    $destFolderParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestFolder', [String], $destFolderAttrColl)
+                    $paramDictionary.Add('DestFolder', $destFolderParam)
+    
+                    $regWithFailoverAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $regWithFailoverAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $regWithFailoverAttr.Mandatory = $true
+                    $regWithFailoverAttr.HelpMessage = 'register virtual machine with failover cluster?'
+                    $regWithFailoverAttrColl.Add($regWithFailoverAttr)
+                    $regWithFailoverParam = New-Object System.Management.Automation.RuntimeDefinedParameter('RegWithFailover', [Switch], $regWithFailoverAttrColl)
+                    $paramDictionary.Add('RegWithFailover', $regWithFailoverParam)
+    
+                    $vmDisplayNameAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                    $vmDisplayNameAttr = New-Object System.Management.Automation.ParameterAttribute
+                    $vmDisplayNameAttr.Mandatory = $true
+                    $vmDisplayNameAttr.HelpMessage = 'out-of-place restore VM display name'
+                    $vmDisplayNameAttrColl.Add($vmDisplayNameAttr)
+                    $vmDisplayNameParam = New-Object System.Management.Automation.RuntimeDefinedParameter('VMDisplayName', [String], $vmDisplayNameAttrColl)
+                    $paramDictionary.Add('VMDisplayName', $vmDisplayNameParam)
+                }
+            }
+            elseif ($RestoreType -eq 'VirtualMachineFiles') { # out-of-place restores for each virtual disk
+                $sourcePathAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                $sourcePathAttr = New-Object System.Management.Automation.ParameterAttribute
+                $sourcePathAttr.Mandatory = $true
+                $sourcePathAttr.HelpMessage = 'source path of virtual machine files'
+                $sourcePathAttrColl.Add($sourcePathAttr)
+                $sourcePathParam = New-Object System.Management.Automation.RuntimeDefinedParameter('SourcePath', [String], $sourcePathAttrColl)
+                $paramDictionary.Add('SourcePath', $sourcePathParam)
+    
+                $destPathAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                $destPathAttr = New-Object System.Management.Automation.ParameterAttribute
+                $destPathAttr.Mandatory = $true
+                $destPathAttr.HelpMessage = 'destination path of virtual machine files'
+                $destPathAttrColl.Add($destPathAttr)
+                $destPathParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestPath', [String], $destPathAttrColl)
+                $paramDictionary.Add('DestPath', $destPathParam)
+    
+                $userNameAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                $userNameAttr = New-Object System.Management.Automation.ParameterAttribute
+                $userNameAttr.Mandatory = $true
+                $userNameAttr.HelpMessage = 'guest user name'
+                $userNameAttrColl.Add($userNameAttr)
+                $userNameParam = New-Object System.Management.Automation.RuntimeDefinedParameter('UserName', [String], $userNameAttrColl)
+                $paramDictionary.Add('UserName', $userNameParam)
+    
+                $passwordAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+                $passwordAttr = New-Object System.Management.Automation.ParameterAttribute
+                $passwordAttr.Mandatory = $true
+                $passwordAttr.HelpMessage = 'guest password'
+                $passwordAttrColl.Add($passwordAttr)
+                $passwordParam = New-Object System.Management.Automation.RuntimeDefinedParameter('Password', [SecureString], $passwordAttrColl)
+                $paramDictionary.Add('Password', $passwordParam)
+            }
+        }
+
+        Set-StrictMode -Version Latest
+
+        return $paramDictionary
+    }
 
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
 
@@ -1440,32 +1570,26 @@ function Restore-CVVirtualMachine {
                 if ($OutofPlace) {
                     $parameters.Add('inPlaceRestore', $False)
                     $destinationClient = @{ }
-                    $destinationClient.Add('clientName', (Read-Host 'Destination client'))
+                    $destinationClient.Add('clientName', $PSBoundParameters.DestHypervisor)
                     $parameters.Add('destinationClient', $destinationClient)
     
                     $destinationInfo = @{ }
                     [System.Collections.ArrayList] $destnationInfo_arr = @()
-                    if ($DestHypervisorType -eq 'vmware') {
+                    if ($HypervisorType -eq 'vmware') {
                         $vmware = @{ }
-                        $vmware.Add('esxHost', (Read-Host 'Destination host'))
-                        $vmware.Add('dataStore', (Read-Host 'Datastore'))
-                        $vmware.Add('resourcePool', (Read-Host 'Resource pool'))
-                        $vmware.Add('vmfolder', (Read-Host 'VM folder path'))
-                        $vmware.Add('newName', (Read-Host 'VM display Name'))
+                        $vmware.Add('esxHost', $PSBoundParameters.DestHost)
+                        $vmware.Add('dataStore', $PSBoundParameters.Datastore)
+                        $vmware.Add('resourcePool', $PSBoundParameters.ResourcePool)
+                        $vmware.Add('vmfolder', $PSBoundParameters.VMFolder)
+                        $vmware.Add('newName', $PSBoundParameters.VMDisplayName)
                         $destinationInfo.Add('vmware', $vmware)
                     }
-                    elseif ($DestHypervisorType -eq 'hyperv') {
+                    elseif ($HypervisorType -eq 'hyperv') {
                         $hyperv = @{ }
-                        $hyperv.Add('server', (Read-Host 'Destination client'))
-                        $hyperv.Add('destinationPath', (Read-Host 'Destination folder'))
-                        $response = Read-Host 'Register virtual machine with failover cluster?'
-                        if ($response -ieq 'yes' -or $response -ieq 'y') {
-                            $hyperv.Add('registerwithFailover', $True)
-                        }
-                        else {
-                            $hyperv.Add('registerwithFailover', $False)
-                        }
-                        $hyperv.Add('newName', (Read-Host 'VM display Name'))
+                        $hyperv.Add('server', $PSBoundParameters.DestClient)
+                        $hyperv.Add('destinationPath', $PSBoundParameters.DestFolder)
+                        $hyperv.Add('registerwithFailover', $PSBoundParameters.RegWithFailover)
+                        $hyperv.Add('newName', $PSBoundParameters.VMDisplayName)
                         $destinationInfo.Add('hyperv', $hyperv)
                     }
     
@@ -1479,23 +1603,12 @@ function Restore-CVVirtualMachine {
             elseif ($RestoreType -eq 'VirtualMachineFiles') { # out-of-place restores for each virtual disk
                 $vmFileLevelRestoreOptions = @{ }
                 [System.Collections.ArrayList] $sourcePath_arr = @()
-                $done = $False
-                do {
-                    $path = Read-Host 'Source path'
-                    if (-not[String]::IsNullOrEmpty($path)) {
-                        $null = $sourcePath_arr.Add($path)
-                    }
-                    else {
-                        $done = $True
-                    }
-                } until ($done)
+                $null = $sourcePath_arr.Add($PSBoundParameters.SourcePath)
                 $vmFileLevelRestoreOptions.Add('sourcePath', $sourcePath_arr)
-                $vmFileLevelRestoreOptions.Add('destPath', (Read-Host 'Destination path'))
+                $vmFileLevelRestoreOptions.Add('destPath', $PSBoundParameters.DestPath)
                 $guestCredentials = @{ }
-                $guestCredentials.Add('userName', (Read-Host 'Guest user name'))
-                [SecureString] ${password}
-                $password = Read-Host 'Guest password' -AsSecureString
-                $guestCredentials.Add('password', $password)
+                $guestCredentials.Add('userName', $PSBoundParameters.UserName)
+                $guestCredentials.Add('password', $PSBoundParameters.Password)
                 $vmFileLevelRestoreOptions.Add('guestCredentials', $guestCredentials)
                 $parameters.Add('vmFileLevelRestoreOptions', $vmFileLevelRestoreOptions)
             }

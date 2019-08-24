@@ -1314,11 +1314,11 @@ function Export-CVSQLDatabaseRTD {
         [ValidateNotNullorEmpty()]
         [Int32] $JobId,
 
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullorEmpty()]
         [String] $DestClientName,
 
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullorEmpty()]
         [String] $DestDiskPath,
 
@@ -1354,12 +1354,10 @@ function Export-CVSQLDatabaseRTD {
                 }
             }
 
-            if (-not[String]::IsNullOrEmpty($DestClientName)) {
-                $clientObj = Get-CVSQLClientDetail -Name $DestClientName
-                if ($null -eq $clientObj) { 
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$DestClientName]"      
-                    return
-                }
+            $clientObj = Get-CVSQLClientDetail -Name $DestClientName
+            if ($null -eq $clientObj) { 
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$DestClientName]"      
+                return
             }
 
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
@@ -1372,25 +1370,9 @@ function Export-CVSQLDatabaseRTD {
             $body.Add('overwriteFiles', $OverwriteExisting.IsPresent)
 
             $destEntity = @{}
-            if ($null -eq $clientObj) {
-                do {
-                    $destClientName = Read-Host 'Destination client name'
-                    $clientObj = Get-CVSQLClientDetail -Name $destClientName
-                    if ($null -eq $clientObj) { 
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$destClientName]"      
-                        Start-Sleep -Seconds 1.5
-                    }
-                } until ($null -ne $clientObj)
-            }
-
             $destEntity.Add('clientId', $clientObj.cId)
             $body.Add('destinationEntity', $destEntity)
-            if (-not[String]::IsNullOrEmpty($DestDiskPath)) {
-                $body.Add('destDiskPath', $DestDiskPath)
-            }
-            else {
-                $body.Add('destDiskPath', (Read-Host 'Destination disk path'))
-            }
+            $body.Add('destDiskPath', $DestDiskPath)
 
             $body = ($body | ConvertTo-Json)
             
@@ -1484,30 +1466,58 @@ function Restore-CVSQLDatabase {
         [ValidateNotNullorEmpty()]
         [System.Object] $DatabaseObject,
 
-        [Parameter(Mandatory = $False)]
-        [ValidateNotNullorEmpty()]
-        [String] $DestClientName,
-
-        [Parameter(Mandatory = $False)]
-        [ValidateNotNullorEmpty()]
-        [String] $DestInstanceName,
-
-        [Parameter(Mandatory = $False)]
-        [ValidateNotNullorEmpty()]
-        [String] $DestDatabaseName,
-
-        [Parameter(Mandatory = $False)]
-        [ValidateNotNullorEmpty()]
-        [String] $DataFilePath,
-
-        [Parameter(Mandatory = $False)]
-        [ValidateNotNullorEmpty()]
-        [String] $LogFilePath,
-
         [Switch] $OutofPlace,
         [Switch] $OverwriteExisting,
         [Switch] $Force
     )
+    
+    DynamicParam {
+        if ($OutofPlace) {
+            $paramDictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+
+            $destClientNameAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+            $destClientNameAttr = New-Object System.Management.Automation.ParameterAttribute
+            $destClientNameAttr.Mandatory = $true
+            $destClientNameAttr.HelpMessage = 'out-of-place restore destination client name'
+            $destClientNameAttrColl.Add($destClientNameAttr)
+            $destClientNameParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestClientName', [String], $destClientNameAttrColl)
+            $paramDictionary.Add('DestClientName', $destClientNameParam)
+
+            $destInstanceNameAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+            $destInstanceNameAttr = New-Object System.Management.Automation.ParameterAttribute
+            $destInstanceNameAttr.Mandatory = $true
+            $destInstanceNameAttr.HelpMessage = 'out-of-place restore destination instance name'
+            $destInstanceNameAttrColl.Add($destInstanceNameAttr)
+            $destInstanceNameParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestInstanceName', [String], $destInstanceNameAttrColl)
+            $paramDictionary.Add('DestInstanceName', $destInstanceNameParam)
+
+            $destDatabaseNameAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+            $destDatabaseNameAttr = New-Object System.Management.Automation.ParameterAttribute
+            $destDatabaseNameAttr.Mandatory = $true
+            $destDatabaseNameAttr.HelpMessage = 'out-of-place restore destination database name'
+            $destDatabaseNameAttrColl.Add($destDatabaseNameAttr)
+            $destDatabaseNameParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestDatabaseName', [String], $destDatabaseNameAttrColl)
+            $paramDictionary.Add('DestDatabaseName', $destDatabaseNameParam)
+
+            $dataFilePathAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+            $dataFilePathAttr = New-Object System.Management.Automation.ParameterAttribute
+            $dataFilePathAttr.Mandatory = $true
+            $dataFilePathAttr.HelpMessage = 'out-of-place restore data files path'
+            $dataFilePathAttrColl.Add($dataFilePathAttr)
+            $dataFilePathParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DataFilePath', [String], $dataFilePathAttrColl)
+            $paramDictionary.Add('DataFilePath', $dataFilePathParam)
+
+            $logFilePathAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
+            $logFilePathAttr = New-Object System.Management.Automation.ParameterAttribute
+            $logFilePathAttr.Mandatory = $true
+            $logFilePathAttr.HelpMessage = 'out-of-place restore log files path'
+            $logFilePathAttrColl.Add($logFilePathAttr)
+            $logFilePathParam = New-Object System.Management.Automation.RuntimeDefinedParameter('LogFilePath', [String], $logFilePathAttrColl)
+            $paramDictionary.Add('LogFilePath', $logFilePathParam)
+
+            return $paramDictionary
+       }
+    }
 
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
 
@@ -1537,24 +1547,6 @@ function Restore-CVSQLDatabase {
                 }
             }
 
-            $clientObj = $null
-            if (-not[String]::IsNullOrEmpty($DestClientName)) {
-                $clientObj = Get-CVSQLClientDetail -Name $DestClientName
-                if ($null -eq $clientObj) { 
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$DestClientName]"      
-                    return
-                }
-            }
-
-            $instanceObj = $null
-            if (-not[String]::IsNullOrEmpty($DestInstanceName)) {
-                $instanceObj = Get-CVSQLInstance -Name $DestInstanceName
-                if ($null -eq $instanceObj) { 
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination instance not found having name [$DestInstanceName]"      
-                    return
-                }
-            }
-
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
 
@@ -1565,51 +1557,24 @@ function Restore-CVSQLDatabase {
 
             $destEntity = @{}
             if ($OutofPlace) {
-                if ($null -eq $clientObj) {
-                    do {
-                        $destClientName = Read-Host 'Destination client name'
-                        $clientObj = Get-CVSQLClientDetail -Name $destClientName
-                        if ($null -eq $clientObj) { 
-                            Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$destClientName]"      
-                            Start-Sleep -Seconds 1.5
-                        }
-                    } until ($null -ne $clientObj)
+                $clientObj = Get-CVSQLClientDetail -Name $PSBoundParameters.DestClientName
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination client not found having name [$($PSBoundParameters.DestClientName)]"      
+                    return
                 }
-
-                if ($null -eq $instanceObj) {
-                    do {
-                        $destInstanceName = Read-Host 'Destination instance name'
-                        $instanceObj = Get-CVSQLInstance -Name $destInstanceName
-                        if ($null -eq $instanceObj) { 
-                            Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination instance not found having name [$destInstanceName]"      
-                            Start-Sleep -Seconds 1.5
-                        }
-                    } until ($null -ne $instanceObj)
+    
+                $instanceObj = Get-CVSQLInstance -Name $PSBoundParameters.DestInstanceName
+                if ($null -eq $instanceObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination instance not found having name [$($PSBoundParameters.DestInstanceName)]"      
+                    return
                 }
 
                 $destEntity.Add('clientId', $clientObj.cId)
                 $destEntity.Add('instanceId', $instanceObj.insId)
 
-                if (-not[String]::IsNullOrEmpty($DestDatabaseName)) {
-                    $body.Add('destinationDatabaseName', $DestDatabaseName)
-                }
-                else {
-                    $body.Add('destinationDatabaseName', (Read-Host 'Destination database name'))
-                }
-
-                if (-not[String]::IsNullOrEmpty($DataFilePath)) {
-                    $body.Add('dataFilePath', $DataFilePath)
-                }
-                else {
-                    $body.Add('dataFilePath', (Read-Host 'Data file path'))
-                }
-
-                if (-not[String]::IsNullOrEmpty($LogFilePath)) {
-                    $body.Add('logFilePath', $LogFilePath)
-                }
-                else {
-                    $body.Add('logFilePath', (Read-Host 'Log file path'))
-                }
+                $body.Add('destinationDatabaseName', $PSBoundParameters.DestDatabaseName)
+                $body.Add('dataFilePath', $PSBoundParameters.DataFilePath)
+                $body.Add('logFilePath', $PSBoundParameters.LogFilePath)
             }
             else {
                 $destEntity.Add('clientId', $DatabaseObject.cId)
