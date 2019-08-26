@@ -218,11 +218,17 @@ function Get-CVJobDetail {
 .PARAMETER JobId
     Gets extended details for the job specified by JobId.
 
+.PARAMETER JobObject
+    Gets extended details for the job specified by piped JobObject.
+
 .EXAMPLE
     Get-CVJobDetail
     
 .EXAMPLE
     Get-CVJobDetail -JobId 175
+
+.EXAMPLE
+    Get-CVJob | Get-CVJobDetail
 
 .EXAMPLE
     Get-CVJobDetail -JobId 175 | Select-Object -ExpandProperty detailInfo
@@ -241,12 +247,16 @@ function Get-CVJobDetail {
     Company: Commvault
 #>
     [Alias('Get-CVJobDetails')]
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'ById')]
     [OutputType([PSCustomObject])]
     param(
-        [Parameter(Mandatory = $True)]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
         [ValidateNotNullorEmpty()]
-        [Int32] $JobId
+        [Int32] $JobId,
+
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [System.Object] $JobObject
     )
 
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
@@ -266,9 +276,14 @@ function Get-CVJobDetail {
             $sessionObj.requestProps.endpoint = $endpointSave
 
             $headerObj = Get-CVRESTHeader $sessionObj
-            $jobObject = @{ }
-            $jobObject.Add('jobId', $JobId)
-            $body = $jobObject | ConvertTo-Json -Depth 10
+            $jobObj = @{ }
+            if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                $jobObj.Add('jobId', $JobId)
+            }
+            else {
+                $jobObj.Add('jobId', $JobObject.jobId)
+            }
+            $body = $jobObj | ConvertTo-Json -Depth 10
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
@@ -1026,7 +1041,7 @@ function Backup-CVDisasterRecovery {
 
         try {
             $headerObj = Get-CVRESTHeader $sessionObj
-            $body = PrepareDRBackupBodyJson.body
+            $body = (PrepareDRBackupBodyJson).body
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
@@ -1073,6 +1088,9 @@ function Send-CVLogFile {
 .PARAMETER EmailAddr
     Specify EmailAddr for notification purpose.
 
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
 .EXAMPLE
     Send-CVLogFile
 
@@ -1090,7 +1108,7 @@ function Send-CVLogFile {
     Company: Commvault
 #>
     [Alias('Start-CVSendLogFiles')]
-    [CmdletBinding(DefaultParameterSetName = 'ById')]
+    [CmdletBinding(DefaultParameterSetName = 'ById', SupportsShouldProcess = $True, ConfirmImpact = 'Low')]
     [OutputType([String])]
     param(
         [Parameter(Mandatory = $True, ParameterSetName = 'ById')]   
@@ -1103,7 +1121,9 @@ function Send-CVLogFile {
 
         [Parameter(Mandatory = $False)]   
         [ValidateNotNullorEmpty()]
-        [String] $EmailAddr
+        [String] $EmailAddr,
+
+        [Switch] $Force
     )
     
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
@@ -1153,8 +1173,13 @@ function Send-CVLogFile {
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
-            
-            $response = Submit-CVRESTRequest $payload $validate
+
+            if ($Force -or $PSCmdlet.ShouldProcess('send log files?')) {
+                $response = Submit-CVRESTRequest $payload $validate
+            }
+            else {
+                $response = Submit-CVRESTRequest $payload $validate -DryRun
+            }
 
             if ($response.IsValid) {
                 Write-Output $response.Content
