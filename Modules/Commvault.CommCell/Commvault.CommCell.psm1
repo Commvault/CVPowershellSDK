@@ -389,162 +389,6 @@ function Get-CVClient {
 }
 
 
-function Add-CVClient {
-<#
-.SYNOPSIS
-    Method to create a new client in CommServe.
-
-.DESCRIPTION
-    Method to create a new client in CommServe.
-
-.PARAMETER Name
-    The Name for the new client. Alias: ClientName.
-
-.PARAMETER User
-    User account name to use in CommCell.
-
-.PARAMETER Password
-    User account password to use in CommCell.
-
-.PARAMETER AgentType
-    The agent type for the new client. The type id can be taken from below:
-        51	MediaAgent
-        54	MediaAgent Core
-        101	SharePoint iDataAgent
-        156	DataArchiver WebProxy Agent for Exchange
-        158	DataArchiver Agent for Exchange
-        301	OSSV Agent
-        356	Sybase iDataAgent
-        358	MySQL iDataAgent
-        362	PostgreSQL iDataAgent
-        363	Documentum Agent
-        402	SRM Windows File System Agent
-        403	SRM Exchange Agent
-        404	SRM NAS Agent
-        405	SRM SQL Agent
-        406	SRM Oracle Agent
-        407	SRM NetWare Proxy Agent
-        408	SRM SharePoint Agent
-        705	Standalone File Archiver for Windows Agent
-        713	VirtualServer Agent
-        715	External Data Connector Agent
-        908	DataArchiver Agent for Network Storage
-        1102	Proxy FileSystem Agent
-        1121	Novell OES Linux FS Agent
-        1123	SRM File System Agent
-        1126	Documentum Agent
-        1128	External Data Connector Agent
-        1136	VirtualServer Agent on UNIX
-        1201	Informix Agent
-        1202	Sybase Agent
-        1203	SybaseIQ Agent
-        1204	Oracle Agent
-        1205	Oracle SAP Agent
-        1206	SAPMAXDB Agent
-        1207	DB2 Agent
-        1208	MySQL Agent
-        1209	Postgre SQL Agent
-        1210	SAP HANA Agent
-        1211	Cassandra Agent
-        1301	MediaAgent
-        1305	MediaAgent Core
-        1351	OSSV Agent
-        2003	NetWare MediaAgent
-
-.PARAMETER OS
-    The operating system for the new client.
-
-.EXAMPLE
-    Add-CVClient -Name NewClient -User admin -AgentType 54 -OS Windows
-
-.OUTPUTS
-    On success it installs client and return 0.
-
-.NOTES
-    Author : Anand Venkatesh
-    Company: Commvault
-#>
-    [CmdletBinding()]
-    param(
-        [Alias('ClientName')]
-        [Parameter(Mandatory = $True)]
-        [ValidateNotNullorEmpty()]
-        [String] $Name,
-
-        [Parameter(Mandatory = $True)]
-        [ValidateNotNullorEmpty()]
-        [String] $User,
-
-        [Parameter(Mandatory = $True)]
-        [ValidateNotNullorEmpty()]
-        [SecureString] $Password,
-
-        [Parameter(Mandatory = $True)]
-        #[Parameter(Mandatory = $True)] #Value can be VirtualServer
-        [ValidateNotNullorEmpty()]
-        [String] $AgentType,
-
-        [Parameter(Mandatory = $True)]
-        #[Parameter(Mandatory = $True)] #Value can be VirtualServer
-        [ValidateNotNullorEmpty()]
-        [String] $OS
-    )
-
-    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
-
-        try {
-            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
-            $endpointSave = $sessionObj.requestProps.endpoint
-        }
-        catch {
-            throw $_
-        }
-    }
-
-    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
-
-        try {
-            $sessionObj.requestProps.endpoint = $endpointSave
-
-            $globals = Get-CVCommCellGlobals
-
-            $prepInputs = @{ }
-            $prepInputs.Add('CommServName', $sessionObj.server)
-            $prepInputs.Add('ClientName', $Name)
-            $prepInputs.Add('ClientUser', $User)
-            $prepInputs.Add('ClientPwd', $Password)
-            $prepInputs.Add('ComponentId', $AgentType)
-            $prepInputs.Add('OS', $OS)
-            $prepInputs.Add('CommcellId', $globals.commCellId)
-            $prepInputs.Add('Commcelluser', $sessionObj.user)
-
-            $body = (PrepareAddClientTaskBodyJson $prepInputs).body
-
-            $headerObj = Get-CVRESTHeader $sessionObj
-            $payload = @{ }
-            $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
-            $validate = 'taskId'
-            
-            $response = Submit-CVRESTRequest $payload $validate
-
-            if ($response.IsValid) {
-                Write-Output $response.Content
-            }
-            else {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): add client request declined for [$Name]"      
-            }
-        }
-        catch {
-            throw $_
-        }
-    }
-
-    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
-    }
-}
-
-
 function Get-CVClientGroup {
 <#
 .SYNOPSIS
@@ -863,7 +707,7 @@ function Set-CVClientGroup {
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
 .EXAMPLE
-    1. Get current props: $props = Get-CVClientGroup -AllProperties -Name 'Media Agents'
+    1. Get current props: $props = Get-CVClientGroup -Name 'Media Agents'
     2. Modify props: $props.description = 'Selects Clients which have media agents installed' etc.
     3. Set props: $props | Set-CVClientGroup -Name 'Media Agents'
 
@@ -874,7 +718,7 @@ function Set-CVClientGroup {
     Author: Gary Stoops
     Company: Commvault
 #>
-    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'Medium')]
+    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'High')]
     param(
         [Alias('ClientGroupName')]
         [Parameter(Mandatory = $True)]
@@ -913,12 +757,32 @@ function Set-CVClientGroup {
 
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientGroupId}', $clientGroupObj.Id) 
 
+            <#
+            {
+                "clientGroupOperationType": 2,
+                "clientGroupDetail": {
+                    "description": "client computer group description modified",
+                    "claQuota": 8,
+                    "clientGroup": {
+                        "clientGroupName": "clientGroupName"
+                    }
+                }
+            }
+            #>
+            $clientGroup = @{}
+            $clientGroup.Add('clientGroupName', $clientGroupObj.name)
+
+            $body = @{}
+            $body.Add('clientGroupOperationType', 2)
+            $body.Add('clientGroupDetail', $Properties)
+            $body.Add('clientGroup', $clientGroup)
+            $body = ($body | ConvertTo-Json -Depth 20)
+            
             $headerObj = Get-CVRESTHeader $sessionObj
-            $body = (PrepareUpdateClientGroupTaskBodyJson $Properties).body
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
-            $validate = $null
+            $validate = 'errorMessage'
 
             if ($Force -or $PSCmdlet.ShouldProcess($clientGroupObj.Name)) {
                 $response = Submit-CVRESTRequest $payload $validate
@@ -956,15 +820,16 @@ function Set-CVClient {
     Set properties on client specified by Name.
 
 .PARAMETER Properties
-    Piped Properties set.
+    Piped Properties set. 
 
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
 .EXAMPLE
-    1. Get current props: $props = Get-CVClient -AllProperties -Name vsa-vc65.testlab.commvault.com
-    2. Modify props: $props.description = 'vsa-vc65 test client' etc.
-    3. Set props: $props | Set-CVClient -Name vsa-vc65.testlab.commvault.com
+    1. Get current props: $props = Get-CVClient -Name carbonwincs1
+    2. Add description prop: $props.Add('clientDescription', 'client-level description modified with REST API Post request')
+    3. Or change client name prop: $props.clientName = 'newClientName'
+    3. Set the props: $props | Set-CVClient -Name carbonwincs1
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -974,7 +839,7 @@ function Set-CVClient {
     Company: Commvault
 #>
     [Alias('Set-CVClientProps')]
-    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'Medium')]
+    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'High')]
     [OutputType([PSCustomObject])]
     param(
         [Alias('ClientName')]
@@ -1014,14 +879,43 @@ function Set-CVClient {
 
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
 
+            <#
+            {
+                "clientProperties": {
+                    "client": {
+                        "clientDescription": "client-level description modified with REST API Post request"
+                    }
+                },
+                "association": {
+                    "entity": [
+                        {
+                            "clientName": "clientName"
+                        }
+                    ]
+                }
+            }
+            #>
+            $client = @{}
+            $client.Add('client', $Properties)
+            $entity = @{}
+            $entity.Add('clientName', $clientObj.clientName)
+            [System.Collections.ArrayList] $entity_arr = @()
+            $null = $entity_arr.Add($entity)
+            $association = @{ }
+            $association.Add('entity', $entity_arr)
+    
+            $body = @{}
+            $body.Add('clientProperties', $client)
+            $body.Add('association', $association)
+            $body = ($body | ConvertTo-Json -Depth 20)
+
             $headerObj = Get-CVRESTHeader $sessionObj
-            $body = (PrepareUpdateClientTaskBodyJson $Properties).body
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
-            $validate = $null
+            $validate = 'response'
 
-            if ($Force -or $PSCmdlet.ShouldProcess($clientObj.Name)) {
+            if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
                 $response = Submit-CVRESTRequest $payload $validate
             }
             else {
@@ -1186,918 +1080,4 @@ function ValidatePagingParameters($PagingParameters, [UInt64] $TotalCount) {
 function HasProperty($Object, $PropertyName)
 {
     $PropertyName -in $Object.PSobject.Properties.Name
-}
-
-
-<# PrepareUpdateClientGroupTaskBodyJson
-{
-    "processinginstructioninfo": {
-        "locale": {
-            "_type_": 66,
-            "localeId": 0
-        },
-        "formatFlags": {
-            "skipIdToNameConversion": true
-        },
-        "user": {
-            "userName": "",
-            "userId": 1,
-            "_type_": 13
-        }
-    },
-    "clientGroupDetail": {
-        "isHtmlDescription": false,
-        "isAddinClientGroup": false,
-        "slaInterval": 0,
-        "isEDCInstanceDeleted": false,
-        "claQuota": 0,
-        "forceClientSideDownload": 0,
-        "isNetworkThrottleEnabled": false,
-        "enableClientSideCaching": false,
-        "rtoMinutes": 0,
-        "description": "Selects Clients which have media agents installed",
-        "isSmartClientGroup": true,
-        "queueConflictingJobsEnabledForCG": false,
-        "userHasAgentManagementPermission": 1,
-        "edcSupportedInstanceType": 0,
-        "rpoMinutes": 0,
-        "allowJobsToRunPastOperationWindowEnabled": false,
-        "isCommCellGroup": false,
-        "JobPriority": 0,
-        "isDiscoveredClientGroup": false,
-        "excludeFromSLA": false,
-        "slaCopyFallenBehindDays": 0,
-        "slaCopyRedundancy": 0,
-        "isEDCInstanceAssociated": false,
-        "networkThrottle": {
-            "enableThrottle": false
-        },
-        "securityAssociations": {
-            "associations": [
-                {
-                    "userOrGroup": [
-                        {
-                            "userGroupName": "master",
-                            "userGroupId": 1,
-                            "_type_": 15
-                        }
-                    ],
-                    "properties": {
-                        "isCreatorAssociation": true,
-                        "role": {
-                            "_type_": 120,
-                            "roleId": 1,
-                            "roleName": "Master"
-                        }
-                    }
-                }
-            ],
-            "ownerAssociations": {}
-        },
-        "dlpPropertise": {
-            "dlpScanIntervalMins": 0,
-            "dlpStolen": false,
-            "dlpEnableAutomaticDecryption": false,
-            "dlpUnlockMethod": 0,
-            "enableDLP": false,
-            "dlpEnableClientKeys": false,
-            "dlpMinFileAgeMins": 0,
-            "dlpRMProperties": {
-                "enableRmDLP": false,
-                "dlpRmNow": false,
-                "dlpRmOfflineDays": 0
-            }
-        },
-        "appMgrServiceLiteNode": {
-            "hostName": "",
-            "clientId": 0,
-            "clientName": ""
-        },
-        "scgRule": {
-            "op": 0,
-            "rules": [
-                {
-                    "rule": {
-                        "filterID": 100,
-                        "secValue": "Media_Agent",
-                        "propID": 2,
-                        "propType": 4,
-                        "value": "5"
-                    }
-                }
-            ]
-        },
-        "overrideHigherLevelSettings": {
-            "userAccount": {
-                "userName": ""
-            }
-        },
-        "clientGroup": {
-            "clientGroupId": 3,
-            "GUID": "42501DBB-8D80-41C9-A07B-DC787105A01F",
-            "clientGroupName": "Media Agents"
-        },
-        "firewallConfiguration": {
-            "configureFirewallSettings": false,
-            "isTrivialConfig": true,
-            "reachMeVia": {},
-            "fwTrivialConfig": {
-                "firewallTrivialDetailsCS": {
-                    "networkType": 1,
-                    "connectionType": 1,
-                    "proxyEntity": {
-                        "_type_": 0
-                    }
-                },
-                "firewallTrivialDetailsMA": {
-                    "networkType": 1,
-                    "connectionType": 1,
-                    "proxyEntity": {
-                        "_type_": 0
-                    }
-                }
-            },
-            "firewallOptions": {
-                "isRoamingClient": false,
-                "extendedProperties": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?\u003e\u003cApp_FirewallExtendedProperties configureAutomatically=\"1\" defaultOutgoingProtocol=\"0\"/\u003e",
-                "tunnelconnectionPort": 8403,
-                "foreceSSL": false,
-                "tunnelInitSeconds": 30,
-                "lockdown": false,
-                "bindOpenPortsOnly": false,
-                "isDMZ": false,
-                "keepAliveSeconds": 300
-            }
-        },
-        "jobThrottleSettings": {
-            "isJobThrottleEnabled": 0,
-            "dataThreshold": 0,
-            "excludeImmidiateJobs": 0,
-            "logThreshold": 0
-        },
-        "clientGroupSecurity": {
-            "associatedUserGroups": [
-                {
-                    "userGroupId": 1,
-                    "_type_": 15,
-                    "userGroupName": "master"
-                }
-            ],
-            "ownerCapabilities": {}
-        },
-        "associatedClients": [
-            {
-                "hostName": "carbonWinCS1.testlab.commvault.com",
-                "clientId": 2,
-                "clientName": "carbonwincs1",
-                "displayName": "carbonwincs1"
-            }
-        ],
-        "powerManagementInfo": {
-            "isPowerMgmtAllowed": true,
-            "isPowerMgmtSupported": true
-        },
-        "clientGroupActivityControl": {
-            "activityControlOptions": [
-                {
-                    "activityType": 1,
-                    "enableAfterADelay": false,
-                    "enableActivityType": true
-                },
-                {
-                    "activityType": 2,
-                    "enableAfterADelay": false,
-                    "enableActivityType": true
-                },
-                {
-                    "activityType": 16,
-                    "enableAfterADelay": false,
-                    "enableActivityType": true
-                }
-            ]
-        },
-        "globalFiltersInfo": {
-            "globalFiltersInfoList": [
-                {
-                    "operatingSystemType": 1,
-                    "globalFilters": {}
-                },
-                {
-                    "operatingSystemType": 2,
-                    "globalFilters": {}
-                }
-            ]
-        },
-        "createAs": {
-            "userGroup": {
-                "userGroupId": 1,
-                "userGroupName": "master"
-            }
-        },
-        "owner": {
-            "userId": 0
-        }
-    }
-}
-#>
-function PrepareUpdateClientGroupTaskBodyJson ([PSCustomObject] $ClientGroupDetail) {
-
-    try {
-        $createTaskReq = [ordered] @{ }
-
-        $processingInstructionInfo = [ordered]@{ }
-        $locale = @{ }
-        $locale.Add('_type_', 66)
-        $locale.Add('localeId', 0)
-        $formatFlags = @{ }
-        $formatFlags.Add('skipIdToNameConversion', $True)
-        $user = @{ }
-        $user.Add('_type_', 13)
-        $user.Add('userName', '')
-        $user.Add('userId', 1)
-        $processingInstructionInfo.Add('locale', $locale)
-        $processingInstructionInfo.Add('formatFlags', $formatFlags)
-        $processingInstructionInfo.Add('user', $user)
-
-        $createTaskReq.Add('processinginstructioninfo', $processingInstructionInfo)
-        $createTaskReq.Add('clientGroupDetail', $ClientGroupDetail)
-
-        $body = $createTaskReq | ConvertTo-Json -Depth 20
-        return @{ 'body' = $body }
-    }
-    catch {
-        throw $_
-    }
-}
-
-
-<# PrepareUpdateClientTaskBodyJson
-{
-    "processinginstructioninfo": {
-        "locale": {
-            "_type_": 66,
-            "localeId": 0
-        },
-        "formatFlags": {
-            "skipIdToNameConversion": true
-        },
-        "user": {
-            "userName": "",
-            "userId": 1,
-            "_type_": 13
-        }
-    },
-    "clientDetail": {
-        "clusterClientProperties": {
-            "configureClusterClient": false,
-            "showAllAgents": false
-        },
-        "pseudoClientInfo": {
-            "edgeDrivePseudoClientProperties": {
-                "systemDriveType": 0,
-                "impersonateUser": {},
-                "outlookAddinStoreInfo": {}
-            },
-            "openVMSProperties": {
-                "cvdPort": 8400,
-                "proxyClients": {},
-                "userAccount": {
-                    "password": "",
-                    "userName": ""
-                }
-            },
-            "virtualServerClientProperties": {
-                "virtualServerInstanceInfo": {
-                    "vsInstanceType": 0,
-                    "azure": {
-                        "credentials": {}
-                    },
-                    "azureResourceManager": {
-                        "tenantId": "",
-                        "credentials": {}
-                    },
-                    "amazonInstanceInfo": {}
-                },
-                "vmBackupInfo": {}
-            },
-            "dbThinClientProperties": {
-                "proxyClients": {}
-            },
-            "cloudClonnectorProperties": {
-                "instance": {
-                    "cloudAppsInstance": {
-                        "generalCloudProperties": {}
-                    }
-                }
-            },
-            "ibmiInstallOptions": {
-                "jobProirity": 0,
-                "jobQueue": "",
-                "createJobQueue": false,
-                "subsysDescription": "",
-                "dataFolder": "",
-                "runPriority": 0,
-                "userProfile": {
-                    "userName": ""
-                }
-            }
-        },
-        "clientConfiguration": {
-            "isMergedExchangePackageInstalled": false
-        },
-        "clientProps": {
-            "isFarmClient": false,
-            "isMA": true,
-            "webSearchServiceUrl": "http://carbonWinCS1.testlab.commvault.com:81/SearchSvc",
-            "AutoUpdateLocation": "C:\\Program Files\\Commvault\\ContentStore",
-            "JobResultsDiskCapThreshold": 90,
-            "CipherType": 2,
-            "RetryFrequencyInSecOnNetworkError": 30,
-            "isWebServerInstalled": true,
-            "RestoreAccessFlag": 0,
-            "isRemoteCacheEnabled": true,
-            "SnapBackupMAInstalled": true,
-            "maxStreams": 0,
-            "forceClientSideDownload": 0,
-            "PathToExchangeMiningTool": "",
-            "is1TouchClient": false,
-            "RestoreAccessSynFull": false,
-            "AltCachePartitionForQSnap": "",
-            "cacheSource": 0,
-            "ClientInterface": "carbonWinCS1.testlab.commvault.com",
-            "EncryptKeyLength": 128,
-            "isIndexingV2": true,
-            "IsQsnapUNIX": false,
-            "dm2CacheDiskCapThreshold": 90,
-            "devsnapTargetPort": 3260,
-            "EnableContentIndexing": false,
-            "OptimizeDataForSearch": false,
-            "recallService": "",
-            "CenteraResourceFilename": "",
-            "isQsnapInstalled": 0,
-            "ContentIndexEngineInstalled": false,
-            "dm2CacheRetentionDays": 7,
-            "overrideGlobalEncryptionSettings": 3,
-            "IsDCInstalled": false,
-            "encryptionSettings": 0,
-            "IsExchangeOnePassClient": false,
-            "isExchangePseudoClient": false,
-            "RetryCountOnNetworkError": 40,
-            "DirectMediaAccessFlag": 0,
-            "devsnapServerType": "",
-            "isPersonalWorkstation": false,
-            "isIndexingV2NAS": false,
-            "JobResultsThresholdMB": 500,
-            "JobResultsRetentionDays": 7,
-            "EnableSnapBackups": false,
-            "BlockLevelCacheDir": "",
-            "StorePatchLocally": true,
-            "isFastSearchSupported": false,
-            "copyManagementLicense": false,
-            "isDescriptionInHTMLFormat": true,
-            "BinarySetID": 3,
-            "IsCommServer": true,
-            "IsDeletedClient": false,
-            "iswebSearchServerInstalled": true,
-            "EnableCollectDelegateInfo": true,
-            "fileLevelAnalyticsLicense": false,
-            "EnableRetryOnNetworkError": true,
-            "dm2CacheThresholdMB": 500,
-            "queueJobsIfOtherConflictingJobsAreActive": false,
-            "IsVirtualClient": false,
-            "JobPriority": 6,
-            "devsnapInitiatorIQN": "iqn.1991-05.com.microsoft:carbonwincs1.testlab.commvault.com",
-            "overrideGlobalDesktopGuiProperties": false,
-            "enableAccessControl": true,
-            "CDRLogFileLocation": "",
-            "EndUserUrl": "http://carbonWinCS1.testlab.commvault.com:80/webconsole",
-            "ClientNoPhysicalMachine": false,
-            "byteOrder": "Little-endian",
-            "RestoreAccessPubKey": false,
-            "networkThrottle": {
-                "enableThrottle": false,
-                "throttle": {}
-            },
-            "securityAssociations": {
-                "ownerAssociations": {}
-            },
-            "clientSecurity": {
-                "enableDataSecurity": false,
-                "associatedUserGroups": [
-                    {
-                        "userGroupId": 1,
-                        "_type_": 15,
-                        "userGroupName": "master"
-                    }
-                ],
-                "ownerCapabilities": {}
-            },
-            "dlpPropertise": {
-                "dlpScanIntervalMins": 15,
-                "dlpStolen": false,
-                "dlpEnableAutomaticDecryption": false,
-                "dlpUnlockMethod": 0,
-                "enableDLP": false,
-                "dlpEnableClientKeys": false,
-                "dlpMinFileAgeMins": 5,
-                "dlpRMProperties": {
-                    "enableRmDLP": false,
-                    "dlpRmNow": false,
-                    "dlpRmOfflineDays": 30
-                }
-            },
-            "firewallConfiguration": {
-                "configureFirewallSettings": false,
-                "isTrivialConfig": false,
-                "reachMeVia": {
-                    "reachMeViaSelected": false
-                },
-                "fwTrivialConfig": {
-                    "firewallTrivialDetailsCS": {
-                        "networkType": 1,
-                        "connectionType": 1,
-                        "proxyEntity": {
-                            "clientName": "NO CLIENT",
-                            "displayName": "NO CLIENT",
-                            "clientId": 1
-                        }
-                    },
-                    "firewallTrivialDetailsMA": {
-                        "networkType": 1,
-                        "connectionType": 1,
-                        "proxyEntity": {
-                            "clientName": "NO CLIENT",
-                            "displayName": "NO CLIENT",
-                            "clientId": 1
-                        }
-                    }
-                },
-                "firewallOptions": {
-                    "isRoamingClient": false,
-                    "extendedProperties": "\u003cApp_FirewallExtendedProperties configureAutomatically=\"1\" defaultOutgoingProtocol=\"0\" /\u003e",
-                    "tunnelconnectionPort": 8403,
-                    "foreceSSL": false,
-                    "tunnelInitSeconds": 30,
-                    "lockdown": false,
-                    "bindOpenPortsOnly": false,
-                    "isDMZ": false,
-                    "keepAliveSeconds": 300,
-                    "tppm": [
-                        {}
-                    ]
-                }
-            },
-            "clientRegionInfo": {
-                "geoLocation": {
-                    "latitude": "40.300320",
-                    "longitude": "-74.081970"
-                }
-            },
-            "deDuplicationProperties": {
-                "performClientSideDeduplication": true,
-                "enableHighLatencyOptimization": false,
-                "cacheBufferSize": 1024,
-                "maxCacheDb": 4096,
-                "clientSideDeduplication": 0,
-                "enableVariableContentAlignment": false,
-                "enableClientSideDiskCache": false
-            },
-            "spWebServerProperties": {
-                "enableOnlineSearch": false,
-                "spWebServerUserPassword": {}
-            },
-            "activityControl": {
-                "EnableDataRecovery": true,
-                "EnableDataManagement": true,
-                "EnableOnlineContentIndex": true
-            },
-            "advancedClientProperties": {
-                "slaCopyFallenBehindDays": 0,
-                "rpoMinutes": 0,
-                "mailServerRole": 0,
-                "rtoMinutes": 0,
-                "slaCopyRedundancy": 0,
-                "excludeFromSLA": false
-            },
-            "dm2CacheDir": {
-                "path": "C:\\Program Files\\Commvault\\ContentStore\\iDataAgent\\JobResults\\DM2CacheDir",
-                "userAccount": {
-                    "userName": ""
-                }
-            },
-            "rightManagementServiceProperties": {
-                "SMTPAddressOfTheRMSSuperUser": "",
-                "decryptRMSDocumentDuringContentIndexing": false,
-                "smtpAddressOfRMSSuperUser": "",
-                "rmsCredentials": {
-                    "password": "",
-                    "userName": ""
-                }
-            },
-            "clientActivityControl": {
-                "activityControlOptions": [
-                    {
-                        "activityType": 1,
-                        "enableAfterADelay": false,
-                        "enableActivityType": true
-                    },
-                    {
-                        "activityType": 2,
-                        "enableAfterADelay": false,
-                        "enableActivityType": true
-                    },
-                    {
-                        "activityType": 512,
-                        "enableAfterADelay": false,
-                        "enableActivityType": true
-                    },
-                    {
-                        "activityType": 16,
-                        "enableAfterADelay": false,
-                        "enableActivityType": true
-                    }
-                ]
-            },
-            "jobThrottleSettings": {
-                "isJobThrottleEnabledAtCS": 0,
-                "isJobThrottleEnabled": 0,
-                "dataThreshold": 1,
-                "excludeImmidiateJobs": 0,
-                "logThreshold": 1
-            },
-            "webSearchServer": {
-                "hostName": "carbonWinCS1.testlab.commvault.com",
-                "clientId": 2
-            },
-            "emailWebAppProperties": {
-                "enableEmailWebApp": false,
-                "exchangeAdminSmtpAddress": "",
-                "exchangeAdministratorAccount": {
-                    "userName": ""
-                }
-            }
-        },
-        "clientReadiness": {
-            "DRStatus": "Ready.",
-            "readinessStatus": "Ready.\n",
-            "onlineTime": {
-                "timeValue": "1564737475"
-            },
-            "ccrTime": {
-                "timeValue": "1564737475"
-            },
-            "offlineTime": {
-                "timeValue": "0"
-            }
-        },
-        "client": {
-            "displayName": "carbonwincs1",
-            "ClockSkewInSeconds": -3,
-            "clientDescription": "",
-            "installDirectory": "C:\\Program Files\\Commvault\\ContentStore",
-            "timezoneSetByUser": false,
-            "evmgrcPort": 0,
-            "cvdPort": 8400,
-            "jobResulsDir": {
-                "path": "C:\\Program Files\\Commvault\\ContentStore\\iDataAgent\\JobResults",
-                "userAccount": {
-                    "userName": ""
-                }
-            },
-            "origCommCell": {
-                "commCellId": 0
-            },
-            "osInfo": {
-                "Type": "Windows",
-                "SubType": "Server",
-                "osId": 210,
-                "OsDisplayInfo": {
-                    "ProcessorType": "WinX64",
-                    "OSName": "Windows Server 2012 R2 Datacenter"
-                }
-            },
-            "clientEntity": {
-                "hostName": "carbonWinCS1.testlab.commvault.com",
-                "clientId": 2,
-                "clientName": "carbonwincs1",
-                "commCellName": "carbonWinCS1.testlab.commvault.com",
-                "clientGUID": "B3EF24F4-2FAB-42DA-9D42-135D696C86A1"
-            },
-            "versionInfo": {
-                "UpdateStatus": 2,
-                "version": "ServicePack:16,AAdditional Updates:,SP16-HotFix-910,SP16-HotFix-911,SP16-HotFix-912",
-                "GalaxyRelease": {
-                    "ReleaseString": "11"
-                },
-                "PatchStatus": [
-                    {
-                        "BaselineUpdates": "SP16 (HPK4)",
-                        "BaselineStatus": 2,
-                        "packageInfo": {
-                            "packageId": 1,
-                            "packageName": "File System Core"
-                        }
-                    }
-                ]
-            },
-            "TimeZone": {
-                "TimeZoneID": 64,
-                "TimeZoneName": "(UTC-08:00) Pacific Time (US \u0026 Canada)"
-            }
-        },
-        "clientGroups": [
-            {
-                "clientGroupId": 1,
-                "clientGroupName": "Infrastructure"
-            },
-            {
-                "clientGroupId": 3,
-                "clientGroupName": "Media Agents"
-            }
-        ],
-        "AdvancedFeatures": [
-            {
-                "LicenseName": "Server File System",
-                "LicenseId": 1
-            }
-        ],
-        "ActivePhysicalNode": {
-            "hostName": "carbonWinCS1.testlab.commvault.com",
-            "clientId": 2,
-            "clientName": "carbonwincs1"
-        }
-    }
-}
-#>
-function PrepareUpdateClientTaskBodyJson ([PSCustomObject] $ClientDetail) {
-
-    try {
-        $createTaskReq = [ordered] @{ }
-
-        $processingInstructionInfo = [ordered]@{ }
-        $locale = @{ }
-        $locale.Add('_type_', 66)
-        $locale.Add('localeId', 0)
-        $formatFlags = @{ }
-        $formatFlags.Add('skipIdToNameConversion', $True)
-        $user = @{ }
-        $user.Add('_type_', 13)
-        $user.Add('userName', '')
-        $user.Add('userId', 1)
-        $processingInstructionInfo.Add('locale', $locale)
-        $processingInstructionInfo.Add('formatFlags', $formatFlags)
-        $processingInstructionInfo.Add('user', $user)
-
-        $createTaskReq.Add('processinginstructioninfo', $processingInstructionInfo)
-        $createTaskReq.Add('clientDetail', $ClientDetail)
-
-        $body = $createTaskReq | ConvertTo-Json -Depth 20
-        return @{ 'body' = $body }
-    }
-    catch {
-        throw $_
-    }
-}
-
-
-<# PrepareAddClientTaskBodyJson
-{  
-    "taskInfo":{  
-        "associations":[  
-            {  
-            "commCellId":2
-            }
-        ],
-        "task":{  
-            "taskType":1,
-            "initiatedFrom":1,
-            "taskFlags":{  
-            "disabled":false
-            }
-        },
-        "subTasks":[  
-            {  
-            "subTask":{  
-                "subTaskType":1,
-                "operationType":4026
-            },
-            "options":{  
-                "adminOpts":{  
-                    "clientInstallOption":{  
-                        "reuseADCredentials":false,
-                        "installOSType":0,
-                        "discoveryType":0,
-                        "installerOption":{  
-                        "requestType":0,
-                        "Operationtype":0,
-                        "CommServeHostName":"vsavccs",
-                        "RemoteClient":false,
-                        "installFlags":{  
-                            "allowMultipleInstances":true,
-                            "restoreOnlyAgents":false,
-                            "killBrowserProcesses":true,
-                            "install32Base":false,
-                            "disableOSFirewall":false,
-                            "stopOracleServices":false,
-                            "skipClientsOfCS":false,
-                            "addToFirewallExclusion":true,
-                            "ignoreJobsRunning":false,
-                            "forceReboot":false,
-                            "overrideClientInfo":true,
-                            "firewallInstall":{  
-                                "enableFirewallConfig":false,
-                                "firewallConnectionType":0,
-                                "portNumber":0
-                            }
-                        },
-                        "User":{  
-                            "userName":"admin",
-                            "userId":1
-                        },
-                        "clientComposition":[  
-                            {  
-                                "packageDeliveryOption":0,
-                                "overrideSoftwareCache":false,
-                                "components":{  
-                                    "commonInfo":{  
-                                    "globalFilters":2
-                                    },
-                                    "fileSystem":{  
-                                    "configureForLaptopBackups":false
-                                    },
-                                    "componentInfo":[  
-                                    {  
-                                        "osType":"Windows",
-                                        "ComponentId":703
-                                    }
-                                    ]
-                                },
-                                "clientInfo":{  
-                                    "client":{  
-                                    "evmgrcPort":0,
-                                    "cvdPort":0
-                                    }
-                                }
-                            }
-                        ]
-                        },
-                        "clientDetails":[  
-                        {  
-                            "clientEntity":{  
-                                "clientName":"172.24.19.0",
-                                "commCellId":2
-                            }
-                        }
-                        ],
-                        "clientAuthForJob":{  
-                        "password":"YnVpbGRlciExMg==",
-                        "userName":"Administrator"
-                        }
-                    },
-                    "updateOption":{  
-                        "rebootClient":true
-                    }
-                }
-            }
-            }
-        ]
-    }
-}
-#>
-function PrepareAddClientTaskBodyJson ($PrepInputs) {
-
-    try {
-        #taskInfo
-        $taskInfo = [ordered] @{}
-
-        #Associations
-        [System.Collections.ArrayList] $associations_arr = @()
-        $assocations_items = [ordered] @{}
-        $assocations_items.Add('commCellId', $PrepInputs.CommcellId)
-        $null = $associations_arr.Add($assocations_items)
-
-        #task
-        $task = [ordered] @{}
-        $task.Add('taskType',1)
-        $task.Add('initiatedFrom',1)
-        $taskFlags = [ordered] @{}
-        $taskFlags.Add('disabled', $False)
-        $task.Add('taskFlags', $taskFlags)
-        
-        #Subtasks
-        [System.Collections.ArrayList] $subTasks_arr = @()
-        $subTasks_dic = [ordered] @{}
-        $subTask = [ordered] @{}
-        $subTask.Add('subTaskType', 1)
-        $subTask.Add('operationType', 4026)
-        $subTasks_dic.Add('subTask', $subTask)
-
-        #Options
-        $options = [ordered] @{}
-        $adminOpts = [ordered] @{}
-        $clientInstallOption = [ordered] @{}
-        $clientInstallOption.Add('reuseADCredentials', $False)
-        $clientInstallOption.Add('installOSType', 0)
-        $clientInstallOption.Add('discoveryType', 0)
-
-        $installerOption = [ordered] @{}
-        $installerOption.Add('requestType', 0)
-        $installerOption.Add('Operationtype', 0)
-        $installerOption.Add('CommServeHostName', $PrepInputs.CommServName) #update this
-        $installerOption.Add('RemoteClient', $False)
-
-        $installFlags = [ordered] @{}
-        $installFlags.Add('allowMultipleInstances', $True)
-        $installFlags.Add('restoreOnlyAgents', $False)
-        $installFlags.Add('killBrowserProcesses', $True)
-        $installFlags.Add('install32Base', $False)
-        $installFlags.Add('disableOSFirewall', $False)
-        $installFlags.Add('stopOracleServices', $False)
-        $installFlags.Add('skipClientsOfCS', $False)
-        $installFlags.Add('addToFirewallExclusion', $True)
-        $installFlags.Add('forceReboot', $False)
-        $installFlags.Add('overrideClientInfo', $True)
-        $firewallnstall = [ordered] @{}
-        $firewallnstall.Add('enableFirewallConfig', $False)
-        $firewallnstall.Add('firewallConnectionType', 0)
-        $firewallnstall.Add('portNumber', 0)
-        $installFlags.Add('firewallInstall', $firewallnstall)
-        $installerOption.Add('installFlags', $installFlags)
-
-        $user = [ordered] @{}
-        $user.Add('userName', $PrepInputs.Commcelluser) #update this
-        $user.Add('userId', 1)
-        $installerOption.Add('User', $user)
-
-        [System.Collections.ArrayList] $clientComposition_arr = @()
-        $clientComposition_dic = [ordered] @{}
-        $clientComposition_dic.Add('packageDeliveryOption', 0)
-        $clientComposition_dic.Add('overrideSoftwareCache', $False)
-        $components = [ordered] @{}
-        $commonInfo = [ordered] @{}
-        $commonInfo.Add('globalFilters', 2)
-        $components.Add('commonInfo', $commonInfo)
-        $filesystem = [ordered] @{}
-        $filesystem.Add('configureForLaptopBackups', $False)
-        $components.Add('fileSystem', $filesystem)
-        $componentInfo = [ordered] @{}
-        
-        [System.Collections.ArrayList] $componentInfo_arr = @()
-        $componentInfo.Add('osType', $PrepInputs.OS) #update
-        $componentInfo.Add('ComponentId', [int] $PrepInputs.ComponentId) #update
-        $null = $componentInfo_arr.Add($componentInfo)
-        $components.Add('componentInfo', $componentInfo_arr)
-        $clientComposition_dic.Add('components', $components)
-        $clientInfo = [ordered] @{}
-        $client = [ordered] @{}
-        $client.Add('evmgrcPort',0)
-        $client.Add('cvdPort',0)
-        $clientInfo.Add('client', $client)
-        $clientComposition_dic.Add('clientInfo', $clientInfo)
-        $null = $clientComposition_arr.Add( $clientComposition_dic)
-        $installerOption.Add('clientComposition', $clientComposition_arr)
-
-        $clientInstallOption.Add('installerOption', $installerOption)
-
-        [System.Collections.ArrayList] $clientDetails_arr = @()
-        $clientDetails_dic = [ordered] @{}
-        $clientEntity = [ordered] @{}
-        $clientEntity.Add('clientName', $PrepInputs.ClientName) #update
-        $clientEntity.Add('commCellId', $PrepInputs.CommcellId)
-        $clientDetails_dic.Add('clientEntity', $clientEntity)
-        $null = $clientDetails_arr.Add($clientDetails_dic)
-        
-        $clientInstallOption.Add('clientDetails', $clientDetails_arr)
-
-        $clientAuthForJob = [ordered] @{}
-        $clientAuthForJob.Add('password', $PrepInputs.ClientPwd) #update
-        $clientAuthForJob.Add('userName', $PrepInputs.ClientUser) #update
-
-        $clientInstallOption.Add('clientAuthForJob', $clientAuthForJob)
-
-        $adminOpts.Add('clientInstallOption', $clientInstallOption)
-
-        $updateOption = [ordered] @{}
-        $updateOption.Add('rebootClient', $True) #update
-
-        $adminOpts.Add('updateOption', $updateOption)
-
-        $options.Add('adminOpts', $adminOpts)
-
-        $subTasks_dic.Add('options', $options)
-        $null = $subTasks_arr.Add($subTasks_dic)
-
-        $taskInfo.Add('associations', $associations_arr)
-        $taskInfo.Add('task', $task)
-        $taskInfo.Add('subTasks', $subTasks_arr)
-
-        $taskInfo_dic = [ordered] @{}
-        $taskInfo_dic.Add('taskInfo', $taskInfo)
-
-        $body = ($taskInfo_dic | ConvertTo-Json -Depth 20)
-        Write-Output @{'body' = $body}
-    }
-    catch {
-        throw $_
-    }
 }

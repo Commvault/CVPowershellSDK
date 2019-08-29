@@ -370,7 +370,7 @@ function Get-CVSQLCloneDetail {
                 }
             }
             else {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no SQL clones found"      
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no clones found"      
             }
         }
         catch

@@ -39,7 +39,10 @@ function Connect-CVServer {
     Connect-CVServer -Server <CVWebserver name> -User <admin>
 
 .EXAMPLE
-    Connect-CVServer -Server <CVWebserver name> -User <admin> -Password <secure password> -Port [port]
+    Connect-CVServer -Server <CVWebserver name> -User <admin> -Password (ConvertTo-SecureString 'password' -AsPlainText -Force)
+
+.EXAMPLE
+    Connect-CVServer -Server <CVWebserver name> -User <admin> -Password (ConvertTo-SecureString 'password' -AsPlainText -Force) -Port [port]
 
 .EXAMPLE
     $Credential= New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList 'admin',('plainTextPassword' | ConvertTo-SecureString -AsPlainText -Force)
@@ -1029,7 +1032,7 @@ function GetAPIDetail ([String] $Request) {
             
             }
     
-            'Get-CVVirtualMachineActiveMounts' = @{
+            'Get-CVVirtualMachineLiveMount' = @{
         
                 Description = 'Starts virtual machine live unmount job'
                 Endpoint    = 'v2/vsa/vm/{vmGUID}/activemounts'

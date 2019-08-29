@@ -729,7 +729,7 @@ function Backup-CVVirtualMachine {
 }
 
 
-function Get-CVVirtualMachineActiveMounts {
+function Get-CVVirtualMachineLiveMount {
 <#
 .SYNOPSIS
     Method to retrieve list of active mounts for specified source virtual machine.
@@ -750,13 +750,13 @@ function Get-CVVirtualMachineActiveMounts {
     Specify Id representing source virtual machine GUID.
 
 .EXAMPLE
-    Get-CVVirtualMachineActiveMounts | Select-Object -ExpandProperty virtualMachines
+    Get-CVVirtualMachineLiveMount | Select-Object -ExpandProperty virtualMachines
 
 .EXAMPLE
-    Get-CVVirtualMachineActiveMounts -Id 502d15b2-9f17-1df9-5231-20b22d73b952 | Select-Object -ExpandProperty virtualMachines
+    Get-CVVirtualMachineLiveMount -Id 502d15b2-9f17-1df9-5231-20b22d73b952 | Select-Object -ExpandProperty virtualMachines
 
 .EXAMPLE
-    Get-CVVirtualMachineActiveMounts -Name LSRegVm1 -ClientName vsa-vc65.testlab.commvault.com -SubclientName LSRegVMG1 | Select-Object -ExpandProperty virtualMachines
+    Get-CVVirtualMachineLiveMount -Name LSRegVm1 -ClientName vsa-vc65.testlab.commvault.com -SubclientName LSRegVMG1 | Select-Object -ExpandProperty virtualMachines
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1123,7 +1123,7 @@ function Dismount-CVVirtualMachine {
     Dismount-CVVirtualMachine -Id f7db5498-2bb5-4152-9064-dd50df07eff5
 
 .EXAMPLE
-    Get-CVVirtualMachineActiveMounts -ClientName VSAAZURE -Name AzureProxyV2CS -SubclientName test-2567 | Dismount-CVVirtualMachine
+    Get-CVVirtualMachineLiveMount -ClientName VSAAZURE -Name AzureProxyV2CS -SubclientName test-2567 | Dismount-CVVirtualMachine
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.

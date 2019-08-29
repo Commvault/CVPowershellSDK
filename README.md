@@ -80,7 +80,7 @@ Sample Package Function Table
 - Function: Mount-CVVirtualMachine                             in Module: Commvault.VirtualServer
 - Function: Remove-CVVirtualMachine                            in Module: Commvault.VirtualServer
 - Function: Restore-CVVirtualMachineOutofPlace                 in Module: Commvault.VirtualServer
-- Function: Get-CVVirtualMachineActiveMounts                   in Module: Commvault.VirtualServer
+- Function: Get-CVVirtualMachineLiveMount                   in Module: Commvault.VirtualServer
 - Function: Backup-CVVirtualMachine                            in Module: Commvault.VirtualServer
 - Function: Get-CVVirtualMachineBackupTime                     in Module: Commvault.VirtualServer
 

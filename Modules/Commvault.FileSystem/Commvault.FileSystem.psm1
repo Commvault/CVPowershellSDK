@@ -387,7 +387,8 @@ function Search-CVClientFileSystem {
     end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
     }
 }
-        
+
+
 function Backup-CVClientFileSystem {
 <#
 .SYNOPSIS
@@ -410,6 +411,9 @@ function Backup-CVClientFileSystem {
 
 .PARAMETER SubclientId
     Create a file system backup task for subclient specified by SubclientId.
+
+.PARAMETER BackupType
+    The BackupType: full, incremental (default), differential, synthFull.
 
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
@@ -455,6 +459,9 @@ function Backup-CVClientFileSystem {
         [Parameter(Mandatory = $False)]
         [ValidateNotNullorEmpty()]
         [Int32] $SubclientId,
+
+        [Parameter(Mandatory = $False)]
+        [CVBackupType] $BackupType = 'incremental',
 
         [Switch] $Force
     )
@@ -526,9 +533,15 @@ function Backup-CVClientFileSystem {
 
             $headerObj = Get-CVRESTHeader $sessionObj
 
-            $bodyDetail = @{}
-            $bodyDetail.Add('subclientId', $subclientObj.subclientId)
-            $body = $bodyDetail | ConvertTo-Json -Depth 10
+            $entity = @{}
+            $entity.Add('clientId', $clientObj.clientId)
+            $entity.Add('clientName', $clientObj.clientName)
+            $entity.Add('subclientId', $subclientObj.subclientId)
+
+            $body = @{}
+            $body.Add('entity', $entity)
+            $body.Add('backuplevel', [Convert]::ToString($BackupType))
+            $body = ($body | ConvertTo-Json)
 
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
@@ -697,9 +710,14 @@ function Restore-CVClientFileSystem {
 
             $headerObj = Get-CVRESTHeader $sessionObj
 
-            $bodyDetail = @{}
-            $bodyDetail.Add('subclientId', $subclientObj.subclientId)
-            $body = $bodyDetail | ConvertTo-Json -Depth 10
+            $entity = @{}
+            $entity.Add('clientId', $clientObj.clientId)
+            $entity.Add('clientName', $clientObj.clientName)
+            $entity.Add('subclientId', $subclientObj.subclientId)
+
+            $body = @{}
+            $body.Add('entity', $entity)
+            $body = ($body | ConvertTo-Json)
 
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
