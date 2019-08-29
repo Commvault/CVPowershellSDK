@@ -498,7 +498,6 @@ function Remove-CVSQLClone { #GRS-WORKINPROGRESS
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $null)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{cloneId}', $null)
 
-            $headerObj = Get-CVRESTHeader $sessionObj
             #GRS-WORKINPROGRESS
             $body = @{}
             $body.Add('overwriteDatabase', $OverwriteDatabase.IsPresent)
@@ -509,9 +508,10 @@ function Remove-CVSQLClone { #GRS-WORKINPROGRESS
             $destClient.Add('clientId', 0)
             $destClient.Add('clientName', '')
             $body.Add('destinationClient', $destClient)
-            $body = ($body | ConvertTo-Json)
+            $body = ($body | ConvertTo-Json -Depth 10)
 
             $payload = @{}
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
@@ -1217,11 +1217,12 @@ function Backup-CVSQLDatabase {
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
 
-            $headerObj = Get-CVRESTHeader $sessionObj
             $body = @{}
             $body.Add('backupType', $BackupType)
-            $body = ($body | ConvertTo-Json)
+            $body = ($body | ConvertTo-Json -Depth 10)
+
             $payload = @{}
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
@@ -1364,8 +1365,6 @@ function Export-CVSQLDatabaseRTD {
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
             if ($JobId -gt 0) { $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{jobId}', $JobId) }
 
-            $headerObj = Get-CVRESTHeader $sessionObj
-            
             $body = @{}
             $body.Add('overwriteFiles', $OverwriteExisting.IsPresent)
 
@@ -1373,10 +1372,10 @@ function Export-CVSQLDatabaseRTD {
             $destEntity.Add('clientId', $clientObj.cId)
             $body.Add('destinationEntity', $destEntity)
             $body.Add('destDiskPath', $DestDiskPath)
-
-            $body = ($body | ConvertTo-Json)
+            $body = ($body | ConvertTo-Json -Depth 10)
             
             $payload = @{}
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
@@ -1550,8 +1549,6 @@ function Restore-CVSQLDatabase {
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
 
-            $headerObj = Get-CVRESTHeader $sessionObj
-            
             $body = @{}
             $body.Add('overwriteFiles', $OverwriteExisting.IsPresent)
 
@@ -1580,10 +1577,10 @@ function Restore-CVSQLDatabase {
                 $destEntity.Add('clientId', $DatabaseObject.cId)
             }
             $body.Add('destinationEntity', $destEntity)
-
-            $body = ($body | ConvertTo-Json)
+            $body = ($body | ConvertTo-Json -Depth 10)
             
             $payload = @{}
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
@@ -1711,15 +1708,14 @@ function Mount-CVSQLDatabase {
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
 
-            $headerObj = Get-CVRESTHeader $sessionObj
-            
             $body = @{}
             $body.Add('overwriteDatabase', $OverwriteDatabase.IsPresent)
             $body.Add('destinationDatabaseName', $DestDatabaseName)
             $body.Add('expireDays', $ExpireDays)
-            $body = ($body | ConvertTo-Json)
+            $body = ($body | ConvertTo-Json -Depth 10)
 
             $payload = @{}
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
@@ -2361,10 +2357,12 @@ function Backup-CVSQLInstance {
 
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $InstanceObject.insId)
 
-            $headerObj = Get-CVRESTHeader $sessionObj
             $body = @{}
             $body.Add('backupType', $BackupType)
+            $body = ($body | ConvertTo-Json -Depth 10)
+
             $payload = @{}
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
@@ -2484,10 +2482,12 @@ function Backup-CVSQLSubclient {
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $SubclientObject.instanceId)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{subclientId}', $SubclientObject.subclientId)
 
-            $headerObj = Get-CVRESTHeader $sessionObj
             $body = @{}
             $body.Add('backupType', $BackupType)
+            $body = ($body | ConvertTo-Json -Depth 10)
+
             $payload = @{}
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'

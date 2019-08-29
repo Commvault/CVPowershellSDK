@@ -776,10 +776,10 @@ function Set-CVClientGroup {
             $body.Add('clientGroupOperationType', 2)
             $body.Add('clientGroupDetail', $Properties)
             $body.Add('clientGroup', $clientGroup)
-            $body = ($body | ConvertTo-Json -Depth 20)
+            $body = ($body | ConvertTo-Json -Depth 10)
             
-            $headerObj = Get-CVRESTHeader $sessionObj
             $payload = @{ }
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'errorMessage'
@@ -907,7 +907,7 @@ function Set-CVClient {
             $body = @{}
             $body.Add('clientProperties', $client)
             $body.Add('association', $association)
-            $body = ($body | ConvertTo-Json -Depth 20)
+            $body = ($body | ConvertTo-Json -Depth 10)
 
             $headerObj = Get-CVRESTHeader $sessionObj
             $payload = @{ }

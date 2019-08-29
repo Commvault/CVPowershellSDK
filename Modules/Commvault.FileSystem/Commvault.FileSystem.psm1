@@ -531,8 +531,6 @@ function Backup-CVClientFileSystem {
                 }
             }
 
-            $headerObj = Get-CVRESTHeader $sessionObj
-
             $entity = @{}
             $entity.Add('clientId', $clientObj.clientId)
             $entity.Add('clientName', $clientObj.clientName)
@@ -541,9 +539,10 @@ function Backup-CVClientFileSystem {
             $body = @{}
             $body.Add('entity', $entity)
             $body.Add('backuplevel', [Convert]::ToString($BackupType))
-            $body = ($body | ConvertTo-Json)
+            $body = ($body | ConvertTo-Json -Depth 10)
 
             $payload = @{ }
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
@@ -708,8 +707,6 @@ function Restore-CVClientFileSystem {
                 }
             }
 
-            $headerObj = Get-CVRESTHeader $sessionObj
-
             $entity = @{}
             $entity.Add('clientId', $clientObj.clientId)
             $entity.Add('clientName', $clientObj.clientName)
@@ -717,9 +714,10 @@ function Restore-CVClientFileSystem {
 
             $body = @{}
             $body.Add('entity', $entity)
-            $body = ($body | ConvertTo-Json)
+            $body = ($body | ConvertTo-Json -Depth 10)
 
             $payload = @{ }
+            $headerObj = Get-CVRESTHeader $sessionObj
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'taskId'
