@@ -1254,7 +1254,8 @@ function Restore-CVVirtualMachine {
     Switch to create an out-of-place virtual machine restore.
 
 .PARAMETER DestHypervisorType
-    Specify DestHypervisorType: vmware or hyperv.
+    Specify DestHypervisorType: vmware or hyperv for out-of-place restore.
+    Note: DestHypervisorType defaults to 'vmare'. For hyperv out-of-place restore, this param must be provided on the command line.
 
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
@@ -1315,7 +1316,7 @@ function Restore-CVVirtualMachine {
         [CVVSARestoreType] $RestoreType = 'FullVirtualMachine',
 
         [Parameter(Mandatory = $False)]   
-        [CVVSAHyperVisorType] $HypervisorType = 'vmware',
+        [CVVSAHyperVisorType] $DestHypervisorType = 'vmware',
 
         [Switch] $OutofPlace,
         [Switch] $PowerOnAfterRestore,
@@ -1338,7 +1339,7 @@ function Restore-CVVirtualMachine {
                 $destHypervisorParam = New-Object System.Management.Automation.RuntimeDefinedParameter('DestHypervisor', [String], $destHypervisorAttrColl)
                 $paramDictionary.Add('DestHypervisor', $destHypervisorParam)
     
-                if ($null -eq $HypervisorType -or $HypervisorType -eq 'vmware') { # default
+                if ($null -eq $DestHypervisorType -or $DestHypervisorType -eq 'vmware') { # default
                     $destHostAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
                     $destHostAttr = New-Object System.Management.Automation.ParameterAttribute
                     $destHostAttr.Mandatory = $true
@@ -1379,7 +1380,7 @@ function Restore-CVVirtualMachine {
                     $vmDisplayNameParam = New-Object System.Management.Automation.RuntimeDefinedParameter('VMDisplayName', [String], $vmDisplayNameAttrColl)
                     $paramDictionary.Add('VMDisplayName', $vmDisplayNameParam)
                 }
-                elseif ($HypervisorType -eq 'hyperv') {
+                elseif ($DestHypervisorType -eq 'hyperv') {
                     $destClientAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
                     $destClientAttr = New-Object System.Management.Automation.ParameterAttribute
                     $destClientAttr.Mandatory = $true
@@ -1399,9 +1400,9 @@ function Restore-CVVirtualMachine {
                     $regWithFailoverAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
                     $regWithFailoverAttr = New-Object System.Management.Automation.ParameterAttribute
                     $regWithFailoverAttr.Mandatory = $true
-                    $regWithFailoverAttr.HelpMessage = 'register virtual machine with failover cluster?'
+                    $regWithFailoverAttr.HelpMessage = 'register virtual machine with failover cluster? True or False'
                     $regWithFailoverAttrColl.Add($regWithFailoverAttr)
-                    $regWithFailoverParam = New-Object System.Management.Automation.RuntimeDefinedParameter('RegWithFailover', [Switch], $regWithFailoverAttrColl)
+                    $regWithFailoverParam = New-Object System.Management.Automation.RuntimeDefinedParameter('RegWithFailover', [String], $regWithFailoverAttrColl)
                     $paramDictionary.Add('RegWithFailover', $regWithFailoverParam)
     
                     $vmDisplayNameAttrColl = new-object System.Collections.ObjectModel.Collection[System.Attribute]
@@ -1563,7 +1564,7 @@ function Restore-CVVirtualMachine {
             $parameters = @{}
             $parameters.Add('passUnconditionalOverride', $OverwriteExisting.IsPresent)
             $parameters.Add('powerOnVmAfterRestore', $PowerOnAfterRestore.IsPresent)
-            if ($JobId -gt 0) { $restoreObj.Add('jobId', $JobId) }
+            if ($JobId -gt 0) { $parameters.Add('jobId', $JobId) }
             #$parameters.Add('copyPrecedence', $CopyPrecedence.value__) #GRSTODO: job fails with this specified
     
             if ($RestoreType -eq 'FullVirtualMachine') {
@@ -1575,7 +1576,7 @@ function Restore-CVVirtualMachine {
     
                     $destinationInfo = @{ }
                     [System.Collections.ArrayList] $destnationInfo_arr = @()
-                    if ($HypervisorType -eq 'vmware') {
+                    if ($DestHypervisorType -eq 'vmware') {
                         $vmware = @{ }
                         $vmware.Add('esxHost', $PSBoundParameters.DestHost)
                         $vmware.Add('dataStore', $PSBoundParameters.Datastore)
@@ -1584,7 +1585,7 @@ function Restore-CVVirtualMachine {
                         $vmware.Add('newName', $PSBoundParameters.VMDisplayName)
                         $destinationInfo.Add('vmware', $vmware)
                     }
-                    elseif ($HypervisorType -eq 'hyperv') {
+                    elseif ($DestHypervisorType -eq 'hyperv') {
                         $hyperv = @{ }
                         $hyperv.Add('server', $PSBoundParameters.DestClient)
                         $hyperv.Add('destinationPath', $PSBoundParameters.DestFolder)
