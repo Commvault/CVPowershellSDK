@@ -223,10 +223,19 @@ function Get-CVRESTHeader {
 
         try {
             if ($null -eq $PagingInfo -or $PagingInfo.Length -eq 0) { # TR - 190508-795
-                $output.Add("header", @{Accept = 'application/json'; Authtoken = $SessionObject.sessionToken })
+                if ($SessionObject.requestProps.ContainsKey('ContentType')) {
+                    $output.Add("header", @{Accept = $SessionObject.requestProps.ContentType; Authtoken = $SessionObject.sessionToken })
+                }
+                else {
+                    $output.Add("header", @{Accept = 'application/json'; Authtoken = $SessionObject.sessionToken })
+                }
             }
             else {
                 $output.Add("header", @{Accept = 'application/json'; Authtoken = $SessionObject.sessionToken; pagingInfo = $PagingInfo })
+            }
+
+            if ($SessionObject.requestProps.ContainsKey('ContentType')) {
+                $output.Add("ContentType", $SessionObject.requestProps.ContentType)
             }
 
             $output.Add("method", $SessionObject.requestProps.method)
@@ -295,8 +304,13 @@ function Submit-CVRESTRequest {
                 Write-Debug -Message "$($MyInvocation.MyCommand): body: $($Payload.body)"      
                 Write-Debug -Message "$($MyInvocation.MyCommand): baseUrl: $($Payload.headerObject.baseUrl)"      
                 Write-Debug -Message "$($MyInvocation.MyCommand): endpoint: $($Payload.headerObject.endpoint)"      
-                Write-Debug -Message "$($MyInvocation.MyCommand): method: $($Payload.headerObject.method)"      
-                $response = (ProcessRequest $Payload.headerObject.header $Payload.body $Payload.headerObject.baseUrl $Payload.headerObject.endpoint $Payload.headerObject.method)
+                Write-Debug -Message "$($MyInvocation.MyCommand): method: $($Payload.headerObject.method)" 
+                if (-not $Payload.headerObject.ContainsKey('ContentType')) {
+                    $response = (ProcessRequest $Payload.headerObject.header $Payload.body $Payload.headerObject.baseUrl $Payload.headerObject.endpoint $Payload.headerObject.method)
+                }
+                else {
+                    $response = (ProcessRequest $Payload.headerObject.header $Payload.body $Payload.headerObject.baseUrl $Payload.headerObject.endpoint $Payload.headerObject.method $Payload.headerObject.ContentType)
+                }
                 ValidateResponse $response $output $ValidateProperty
             }
         }
@@ -317,9 +331,19 @@ function ValidateResponse ([HashTable] $Response, [PSCustomObject] $Output, [Str
     
     try {
         if ($Response.Status -eq 200 -and $null -ne $Response.Body) {
-            $Output | Add-Member -NotePropertyName 'Content' -NotePropertyValue ($Response.Body | ConvertFrom-Json)
-            if (-not $Output.IsValid -and -not[String]::IsNullOrEmpty($ValidateProperty)) {
-                $Output.IsValid = ($ValidateProperty -in $Output.Content.PSobject.Properties.Name)
+            try {
+                $Output | Add-Member -NotePropertyName 'Content' -NotePropertyValue ($Response.Body | ConvertFrom-Json)
+                if (-not $Output.IsValid -and -not[String]::IsNullOrEmpty($ValidateProperty)) {
+                    $Output.IsValid = ($ValidateProperty -in $Output.Content.PSobject.Properties.Name)
+                }
+            }
+            catch {
+                if ($_.Exception.Message -eq 'Invalid JSON primitive: .') { # Xml response body
+                    $Output | Add-Member -NotePropertyName 'Content' -NotePropertyValue $Response.Body.Content
+                    if (-not $Output.IsValid -and -not[String]::IsNullOrEmpty($ValidateProperty)) {
+                        $Output.IsValid = ($Output.Content.Contains($ValidateProperty))
+                    }
+                }
             }
         }
         elseif ($Response.Status -eq 202) {
@@ -419,8 +443,17 @@ function GetSessionToken ([String] $Server, [String] $User, [SecureString] $Secu
 }
 
 	
-function ProcessRequest ([HashTable] $Header, [String] $Body, [String] $BaseUrl, [String] $Endpoint, [String] $Method) {
-	    
+function ProcessRequest () {
+    
+    param (
+        [HashTable] $Header, 
+        [String] $Body, 
+        [String] $BaseUrl, 
+        [String] $Endpoint, 
+        [String] $Method, 
+        [String] $ContentType = 'application/json'
+    )
+
     try {
         $output = @{ }
         $url = "$BaseUrl$Endpoint"
@@ -432,10 +465,10 @@ function ProcessRequest ([HashTable] $Header, [String] $Body, [String] $BaseUrl,
         $output.Add('Body', $null)
 
         if ($Method.ToLower() -eq 'post' -or $Method.ToLower() -eq 'put' -or $Method.ToLower() -eq 'delete') {
-            $response = Invoke-WebRequest -Uri $url -Method $Method -Body $Body -Headers $Header -ContentType 'application/json' -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri $url -Method $Method -Body $Body -Headers $Header -ContentType $ContentType -ErrorAction Stop
         }
         elseif ($Method.ToLower() -eq 'get') {
-            $response = Invoke-WebRequest -Uri $url -Headers $Header -ContentType 'application/json' -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri $url -Headers $Header -ContentType $ContentType -ErrorAction Stop
         }
     
         $output['Status'] = $response.StatusCode
@@ -736,9 +769,19 @@ function GetAPIDetail ([String] $Request) {
             'Enable-CVSchedulePolicy' = @{
         
                 Description = 'Enable schedule policy'
-                Endpoint    = 'SchedulePolicy/{schedulePolicyId}'
-                Method      = 'Put'
+                Endpoint    = 'Schedules/task/Action/Enable'
+                Method      = 'Post'
                 Body        = ''
+                ContentType = 'text/plain'
+            }
+
+            'Disable-CVSchedulePolicy' = @{
+        
+                Description = 'Disable schedule policy'
+                Endpoint    = 'Schedules/task/Action/Disable'
+                Method      = 'Post'
+                Body        = ''
+                ContentType = 'text/plain'
             }
 
             'Get-CVStoragePolicy' = @{

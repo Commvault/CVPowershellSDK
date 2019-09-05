@@ -257,10 +257,7 @@ function Enable-CVSchedulePolicy {
 
         [Parameter(Mandatory = $True, ParameterSetName = 'BySubclient')]
         [ValidateNotNullorEmpty()]
-        [String] $SubclientName,
-
-        [Parameter(DontShow)]
-        [Switch] $Disable
+        [String] $SubclientName
     )
     
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
@@ -310,24 +307,17 @@ function Enable-CVSchedulePolicy {
             }
 
             foreach ($policy in $policiesToProcess) {
-                if ($Disable) {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): ...disabling policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)]"
-                }
-                else {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): ...enabling policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)]"
-                }
-
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): ...enabling policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)]"
                 $sessionObj.requestProps.endpoint = $endpointSave
-                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{schedulePolicyId}', $policy.task.taskId)
 
-                if ($Disable) { $body = (PrepareUpdateScheduleTaskBodyJson $policy -Disable).body }
-                else { $body = (PrepareUpdateScheduleTaskBodyJson $policy).body }
-    
+                $body = 'TaskId='
+                $body += $policy.task.taskId
+
                 $headerObj = Get-CVRESTHeader $sessionObj
                 $payload = @{ }
                 $payload.Add("headerObject", $headerObj)
                 $payload.Add("body", $body)
-                $validate = $null
+                $validate = '<TMMsg_GenericResp errorCode="0"/>'
                     
                 $response = Submit-CVRESTRequest $payload $validate
     
@@ -335,12 +325,7 @@ function Enable-CVSchedulePolicy {
                     Write-Output $response.Content
                 }
                 else {
-                    if ($Disable) {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)] was not disabled"
-                    }
-                    else {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)] was not enabled"
-                    }
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)] was not enabled"
                 }
             }
         }
@@ -422,24 +407,74 @@ function Disable-CVSchedulePolicy {
         [ValidateNotNullorEmpty()]
         [String] $SubclientName
     )
-
+    
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
     }
 
     process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
     
         try {
+            $policiesToProcess = @()
+
             if ($PSCmdlet.ParameterSetName -eq 'ByPolicyName') {
-                Enable-CVSchedulePolicy -Name $Name -Disable
+                $policyObj = Get-CVSchedulePolicy -Name $Name
+                if ($null -ne $policyObj) {
+                    $policiesToProcess += $policyObj
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): policy not found having name [$Name]"
+                    return
+                }
             }
             elseif ($PSCmdlet.ParameterSetName -eq 'ByPolicyId') {
-                Enable-CVSchedulePolicy -Id $Id -Disable
+                $policyObj = Get-CVSchedulePolicy -Id $Id
+                if ($null -ne $policyObj) {
+                    $policiesToProcess += $policyObj
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): policy not found having id [$Id]"
+                    return
+                }
             }
             elseif ($PSCmdlet.ParameterSetName -eq 'BySubclient') {
-                Enable-CVSchedulePolicy -ClientName $ClientName -SubclientName $SubclientName -Disable
+                $policyObjs = Get-CVSchedulePolicy -ClientName $ClientName -SubclientName $SubclientName
+                foreach ($policyObj in $policyObjs) {
+                    $policiesToProcess += $policyObj
+                }
             }
-            else {
-                $PolicyObject | Enable-CVSchedulePolicy -Disable
+            else { #ByPolicyObject
+                $policiesToProcess += $PolicyObject
+            }
+
+            foreach ($policy in $policiesToProcess) {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): ...disabling policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)]"
+                $sessionObj.requestProps.endpoint = $endpointSave
+
+                $body = 'TaskId='
+                $body += $policy.task.taskId
+
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $payload = @{ }
+                $payload.Add("headerObject", $headerObj)
+                $payload.Add("body", $body)
+                $validate = '<TMMsg_GenericResp errorCode="0"/>'
+                    
+                $response = Submit-CVRESTRequest $payload $validate
+    
+                if ($response.IsValid) {
+                    Write-Output $response.Content
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): policy [$($policy.task.taskName)] taskId [$($policy.task.taskId)] was not disabled"
+                }
             }
         }
         catch {
@@ -450,7 +485,7 @@ function Disable-CVSchedulePolicy {
     end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
     }
 }
-                
+            
                 
 function Get-CVStoragePolicy {
 <#
@@ -649,231 +684,5 @@ function Get-CVStoragePolicy {
         catch {
             throw $_
         }
-    }
-}
-
-
-<# PrepareUpdateScheduleTaskBodyJson
-{
-    "processinginstructioninfo": {
-        "locale": {
-            "_type_": 66,
-            "localeId": 0
-        },
-        "formatFlags": {
-            "skipIdToNameConversion": true
-        },
-        "user": {
-            "userName": "",
-            "userId": 1,
-            "_type_": 13
-        }
-    },
-    "taskInfo": {
-        "associations": [
-            {
-                "srmReportSet": 0,
-                "srmTemplateId": 0,
-                "subclientId": 7,
-                "clientGroupId": 0,
-                "storagePolicyId": 0,
-                "copyId": 0,
-                "applicationId": 81,
-                "clientName": "carbonwincs1",
-                "displayName": "carbonwincs1",
-                "backupsetId": 6,
-                "instanceId": 3,
-                "clientId": 2,
-                "copyName": "",
-                "subclientName": "AuditDB",
-                "srmTemplateName": "",
-                "agentlessPolicyId": 0,
-                "mediaAgentId": 0,
-                "mediaAgentName": "carbonwincs1",
-                "backupsetName": "defaultBackupSet",
-                "instanceName": "CARBONWINCS1\\COMMVAULT",
-                "storagePolicyName": "",
-                "_type_": 7,
-                "appName": "SQL Server",
-                "flags": {
-                    "exclude": false
-                }
-            }
-        ],
-        "task": {
-            "description": "Audit DB schedule policy.",
-            "ownerId": 3,
-            "runUserId": 1,
-            "taskType": 4,
-            "ownerName": "master",
-            "alertId": 0,
-            "GUID": "db565d1f-6b76-4596-bf6f-b1a0091e1ac9",
-            "policyType": 0,
-            "taskName": "AuditDB-SchedulePolicy",
-            "taskId": 229,
-            "originalCC": {
-                "commCellId": 2
-            },
-            "taskFlags": {
-                "isEdgeDrive": false,
-                "isEZOperation": false,
-                "uninstalled": false,
-                "disabled": true
-            },
-            "task": {
-                "taskName": "AuditDB-SchedulePolicy",
-                "taskId": 229
-            }
-        },
-        "appGroup": {},
-        "subTasks": [
-            {
-                "relativeTime": 49072,
-                "nextScheduleTime": 1564718400,
-                "subTask": {
-                    "subTaskOrder": 0,
-                    "subTaskName": "",
-                    "subTaskType": 2,
-                    "flags": 0,
-                    "operationType": 2,
-                    "subTaskId": 230
-                },
-                "pattern": {
-                    "active_end_occurence": 0,
-                    "freq_subday_interval": 0,
-                    "freq_type": 4,
-                    "patternId": 17,
-                    "flags": 0,
-                    "description": "Every day at 9:00 PM  ",
-                    "active_end_time": 0,
-                    "active_end_date": 0,
-                    "skipOccurence": 0,
-                    "skipDayNumber": 0,
-                    "active_start_time": 75600,
-                    "freq_restart_interval": 0,
-                    "active_start_date": 1564444800,
-                    "freq_interval": 1,
-                    "freq_relative_interval": 0,
-                    "name": "",
-                    "freq_recurrence_factor": 1,
-                    "repeatPattern": [
-                        {
-                            "exception": true,
-                            "onDayNumber": 0,
-                            "onDay": 512,
-                            "description": "On First - Weekend Day",
-                            "occurrence": 1,
-                            "repeatOn": 0
-                        }
-                    ],
-                    "calendar": {
-                        "calendarId": 1
-                    },
-                    "timeZone": {
-                        "TimeZoneID": 64
-                    }
-                },
-                "options": {
-                    "backupOpts": {
-                        "truncateLogsOnSource": false,
-                        "sybaseSkipFullafterLogBkp": false,
-                        "bkpLatestVersion": true,
-                        "notSynthesizeFullFromPrevBackup": false,
-                        "collectMetaInfo": false,
-                        "backupLevel": 2,
-                        "incLevel": 1,
-                        "adHocBackup": false,
-                        "runIncrementalBackup": false,
-                        "runSILOBackup": false,
-                        "doNotTruncateLog": true,
-                        "vsaBackupOptions": {
-                            "backupFailedVMsOnly": false
-                        },
-                        "cdrOptions": {
-                            "incremental": true,
-                            "moveConsistencyPointToTape": false,
-                            "cdrRecoveryPointType": 0,
-                            "createRecoveryPoint": false,
-                            "dataVerificationOnly": false,
-                            "full": false
-                        },
-                        "dataOpt": {
-                            "skipCatalogPhaseForSnapBackup": true,
-                            "useCatalogServer": true,
-                            "followMountPoints": true,
-                            "enforceTransactionLogUsage": false,
-                            "skipConsistencyCheck": false,
-                            "granularrecovery": false,
-                            "collectVMGranularRecoveryMetadataForBkpCopy": false,
-                            "createNewIndex": false,
-                            "autoCopy": false
-                        },
-                        "oracleOptions": {
-                            "level": 1,
-                            "cumulative": false,
-                            "deleteArchLogOptions": {
-                                "backupArchiveLogCriteria": 0
-                            },
-                            "backupArchLogOptions": {
-                                "backupArchiveLogCriteria": 7,
-                                "startLSN": 1,
-                                "endLSN": 1,
-                                "backupArchiveLog": true
-                            }
-                        },
-                        "distAppsBackupOptions": {
-                            "runLogBkp": false,
-                            "runDataBkp": true
-                        },
-                        "mediaOpt": {}
-                    },
-                    "adminOpts": {
-                        "contentIndexingOption": {
-                            "subClientBasedAnalytics": false
-                        }
-                    },
-                    "restoreOptions": {
-                        "commonOptions": {
-                            "syncRestore": false
-                        }
-                    },
-                    "commonOpts": {
-                        "perfJobOpts": {}
-                    }
-                }
-            }
-        ]
-    }
-}
-#>
-function PrepareUpdateScheduleTaskBodyJson ([PSCustomObject] $TaskInfo, [Switch] $Disable) {
-
-    try {
-        $createTaskReq = [ordered] @{ }
-
-        $processingInstructionInfo = [ordered]@{ }
-        $locale = @{ }
-        $locale.Add('_type_', 66)
-        $locale.Add('localeId', 0)
-        $formatFlags = @{ }
-        $formatFlags.Add('skipIdToNameConversion', $True)
-        $user = @{ }
-        $user.Add('_type_', 13)
-        $user.Add('userName', '')
-        $user.Add('userId', 1)
-        $processingInstructionInfo.Add('locale', $locale)
-        $processingInstructionInfo.Add('formatFlags', $formatFlags)
-        $processingInstructionInfo.Add('user', $user)
-
-        $TaskInfo.task.taskFlags.disabled = $Disable.IsPresent
-
-        $createTaskReq.Add('processinginstructioninfo', $processingInstructionInfo)
-        $createTaskReq.Add('taskInfo', $TaskInfo)
-
-        $body = $createTaskReq | ConvertTo-Json -Depth 10
-        return @{ 'body' = $body }
-    }
-    catch {
-        throw $_
     }
 }
