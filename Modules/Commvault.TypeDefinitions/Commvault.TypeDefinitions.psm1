@@ -9,6 +9,7 @@
 Set-StrictMode -Version latest
 
 enum CVSchedulePolicyType {
+    All = -1
     DataProtection = 0
     AuxiliaryCopy = 1
     BackupCopy = 3
@@ -19,10 +20,10 @@ enum CVSchedulePolicyType {
 }
 
 enum CVBackupType {
-    full = 1
-    incremental = 2
-    differential = 3
-    synthfull = 4
+    Full = 1
+    Incremental = 2
+    Differential = 3
+    Synthetic_Full = 4
 }
 
 enum CVCopyPrecedence {
@@ -53,6 +54,14 @@ enum CVSQLInstanceSortColumn {
     cName
     noDBs
     planName
+}
+
+enum CVVSAVMStatus {
+    ALL = 0
+    PROTECTED = 1
+    NOT_PROTECTED = 2
+    PENDING = 3
+    BACKED_UP_WITH_ERROR = 4
 }
 
 enum CVVSABackupType {

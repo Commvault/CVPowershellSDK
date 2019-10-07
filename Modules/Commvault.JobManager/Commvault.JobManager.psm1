@@ -887,7 +887,7 @@ function Backup-CVSubclient {
     Backup-CVSubclient -Id 7
     
 .EXAMPLE
-    Backup-CVSubclient -Id 7 -BackupType full
+    Backup-CVSubclient -Id 7 -BackupType Full
     
 .EXAMPLE
     Get-CVSubclient -ClientName carbonwincs1 | Backup-CVSubclient (initiates backup of all subclients of ClientName)
@@ -944,6 +944,10 @@ function Backup-CVSubclient {
         try {
             $sessionObj.requestProps.endpoint = $endpointSave
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{backupType}', $BackupType)
+
+            if ($BackupType -eq 'Synthetic_Full') {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint + '&runIncrementalBackup=True&incrementalLevel=AFTER_SYNTH'
+            }
 
             if ($PSCmdlet.ParameterSetName -eq 'ByName') {
                 $subclientObj = Get-CVSubclient -Name $Name -ClientName $ClientName
@@ -1108,11 +1112,11 @@ function Send-CVLogFile {
     Company: Commvault
 #>
     [Alias('Start-CVSendLogFiles')]
-    [CmdletBinding(DefaultParameterSetName = 'ById', SupportsShouldProcess = $True, ConfirmImpact = 'Low')]
+    [CmdletBinding(DefaultParameterSetName = 'ById', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
     [OutputType([String])]
     param(
         [Parameter(Mandatory = $True, ParameterSetName = 'ById')]   
-        [ValidateNotNullorEmpty()]
+        [ValidateRange(1, [Int32]::MaxValue)]
         [Int32] $JobId,
 
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]   
@@ -1141,16 +1145,11 @@ function Send-CVLogFile {
         try {
             if ($PSCmdlet.ParameterSetName -eq 'ById') {
                 $job = Get-CVJobDetail -JobId $JobId
-                if ($null -ne $job) {
-                    $clientObj = (Get-CVClient -Name $job.generalInfo.subclient.clientName)
-                    if ($null -ne $clientObj) {
-                        $ClientName = $clientObj.clientName
-                    }
-                }
-                else {
+                if ($null -eq $job) {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): invalid job id [$JobId]"
                     return
                 }
+                $emailSubject = 'Logs for job ' + $JobId
             }
             elseif ($PSCmdlet.ParameterSetName -eq 'ByName') {
                 $clientObj = Get-CVClient -Name $ClientName
@@ -1158,13 +1157,24 @@ function Send-CVLogFile {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$ClientName]"
                     return
                 }
+                $emailSubject = 'Logs for client ' + $ClientName
             }
 
             $prepInputs = @{ }
-            $prepInputs.Add('ClientName', $ClientName)
-            if ($PSCmdlet.ParameterSetName -eq 'ById') { $prepInputs.Add('JobId', $JobId) }
-            $prepInputs.Add('EmailId', $EmailAddr)
-            $prepInputs.Add('emailSubject', "Logs for client $ClientName")
+
+            if ($PSCmdlet.ParameterSetName -eq 'ById') { 
+                $prepInputs.Add('JobId', $JobId) 
+            }
+            elseif ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                $prepInputs.Add('ClientName', $ClientName)
+
+            }
+
+            $prepInputs.Add('emailSubject', $emailSubject) # default email to: support@commvault.com
+
+            if (-not [String]::IsNullOrEmpty($EmailAddr)) {
+                $prepInputs.Add('EmailId', $EmailAddr)
+            }
             
             $body = (PrepareSendLogFilesBodyJson $prepInputs).body
 
@@ -1510,20 +1520,14 @@ function PrepareSendLogFilesBodyJson ($PrepInputs) {
         $impersonateUser.Add("useImpersonation", $False)
         $sendLogFilesOption.Add("impersonateUser", $impersonateUser)
 
-        #Email Ids
         [System.Collections.ArrayList] $emailids_arr = @()
         
+        $null = $emailids_arr.Add('support@commvault.com') # default email id to Commvault support
         if ($PrepInputs.ContainsKey("EmailId")) {
             $null = $emailids_arr.Add($PrepInputs['EmailId'])
-            $sendLogFilesOption.Add("emailids", $emailids_arr)
         }
-        else {
-            #Default email id to Commvault support
-            $null = $emailids_arr.Add('support@commvault.com')
-            $sendLogFilesOption.Add("emailids", $emailids_arr)
-        }
+        $sendLogFilesOption.Add("emailids", $emailids_arr)
         
-        #Construct jobs array if JobId has been passed for SendLog
         if ($PrepInputs.ContainsKey("JobId")) {
             [System.Collections.ArrayList] $multiJobIds_arr = @()
             $iJobId = [int] $PrepInputs.JobId
@@ -1531,7 +1535,6 @@ function PrepareSendLogFilesBodyJson ($PrepInputs) {
             $sendLogFilesOption.Add("multiJobIds", $multiJobIds_arr)
         }
         else {
-            #construct client property map to reference client properties.
             [System.Collections.ArrayList] $clients_arr = @()
             if ($PrepInputs.ContainsKey("ClientName")) {
                 $clientMap = [ordered] @{ }

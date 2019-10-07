@@ -32,11 +32,17 @@ function Get-CVSchedulePolicy {
     Filter output by SubclientName.
 
 .PARAMETER Scheduletype
-    Filter by ScheduleType: DataProtection (default), AuxiliaryCopy, BackupCopy, OfflineContentIndexing, DDBVerification, ContentIndexing, Workflow.
+    Filter by ScheduleType: All (default), DataProtection, AuxiliaryCopy, BackupCopy, OfflineContentIndexing, DDBVerification, ContentIndexing, or Workflow.
 
 .EXAMPLE
     Get-CVSchedulePolicy
-    
+
+.EXAMPLE
+    Get-CVSchedulePolicy -ScheduleType All | Select-Object -ExpandProperty task
+
+.EXAMPLE
+    Get-CVSchedulePolicy -ScheduleType Workflow | Select-Object -ExpandProperty task
+
 .EXAMPLE
     Get-CVSchedulePolicy -Name AuditDB-3
 
@@ -88,7 +94,7 @@ function Get-CVSchedulePolicy {
         [Int32] $Id,
 
         [Parameter(Mandatory = $False)]
-        [CVSchedulePolicyType] $ScheduleType = 'DataProtection'
+        [CVSchedulePolicyType] $ScheduleType = 'All'
     )
     
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
@@ -116,7 +122,7 @@ function Get-CVSchedulePolicy {
                 }
             }
 
-            # use of {scheduleType} param results in empty response body
+            # API currently does not properly filter on scheduleType
             #$sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{scheduleType}', $ScheduleType.value__)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{scheduleType}', $null)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{subclientId}', $null)
@@ -132,6 +138,10 @@ function Get-CVSchedulePolicy {
 
             if ($response.IsValid) {
                 foreach ($policy in $response.Content.taskDetail) {
+                    if ($ScheduleType -ne 'All' -and ($policy.task.policyType -ne $ScheduleType.value__)) { # API does not properly filter on scheduleType
+                        continue
+                    }
+
                     if ($PSCmdlet.ParameterSetName -eq 'ByName') {
                         if ($Name -ne $policy.task.taskName) { 
                             continue
@@ -155,7 +165,7 @@ function Get-CVSchedulePolicy {
                     $response = Submit-CVRESTRequest $payload $validate
         
                     if ($response.IsValid) {
-                        Write-Output $response.Content.taskInfo 
+                        Write-Output $response.Content.taskInfo
                         $processCount++
                     }
                 }

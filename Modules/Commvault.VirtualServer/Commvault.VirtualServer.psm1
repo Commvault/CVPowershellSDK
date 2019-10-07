@@ -238,7 +238,7 @@ function Get-CVVirtualMachine {
                                         continue
                                     }
                                 }
-                                if ($Protected -and ($response.Content.vmStatusInfoList[$index].vmStatus -eq 1)) {
+                                if ($Protected -and ($response.Content.vmStatusInfoList[$index].vmStatus -eq [CVVSAVMStatus]::PROTECTED)) {
                                     foreach ($subclient in $activeSubclients) {
                                         if ($subclient.subclientId -eq $response.Content.vmStatusInfoList[$index].subclientId) {
                                             Write-Output $response.Content.vmStatusInfoList[$index]
@@ -270,7 +270,7 @@ function Get-CVVirtualMachine {
                                         continue
                                     }
                                 }
-                                if ($Protected -and ($vmRecord.vmStatus -eq 1)) {
+                                if ($Protected -and ($vmRecord.vmStatus -eq [CVVSAVMStatus]::PROTECTED)) {
                                     foreach ($subclient in $activeSubclients) {
                                         if ($subclient.subclientId -eq $vmRecord.subclientId) {
                                             Write-Output $vmRecord
@@ -535,23 +535,17 @@ function Backup-CVVirtualMachine {
 .DESCRIPTION
     Method to initiate backup of specified virtual machine.
     
-.PARAMETER Name
-    Virtual machine Name.
-
 .PARAMETER Id
     Virtual machine Id: this is the virtual machine GUID.
+
+.PARAMETER Name
+    Virtual machine Name.
 
 .PARAMETER ClientName
     Virtual machine associated ClientName.
 
 .PARAMETER ClientObject
     Virtual machine associated client specified by piped ClientObject.
-
-.PARAMETER SubclientName
-    Virtual machine associated SubclientName. Subclient specification with this parameter will override the default behavior.
-
-.PARAMETER BackupLevel
-    Specify BackupLevel: Full, Incremental (default), Synthfull.
 
 .PARAMETER Protected
     Use this switch to filter legacy, unprotected virtual machines when specifed by Name.
@@ -560,13 +554,10 @@ function Backup-CVVirtualMachine {
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
 .EXAMPLE
-    Backup-CVVirtualMachine
+    Backup-CVVirtualMachine -Id 500b0375-4728-588f-3d69-2d64b5291bcf
 
 .EXAMPLE
-    Backup-CVVirtualMachine -ClientName Openstack-V2-client -Name autocs-winvm2
-
-.EXAMPLE
-    Backup-CVVirtualMachine -ClientName Openstack-V2-client -Name autocs-winvm2 -BackupLevel Full
+    Backup-CVVirtualMachine -Name 2208 -ClientName V1-VSAQA
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -596,14 +587,6 @@ function Backup-CVVirtualMachine {
         [ValidateNotNullorEmpty()]
         [System.Object] $ClientObject,
 
-        [Parameter(Mandatory = $False )]
-        [ValidateNotNullorEmpty()]
-        [String] $SubclientName,
-
-        [Alias('JobType')]
-        [Parameter(Mandatory = $False)]
-        [CVVSABackupType] $BackupType = 'Incremental',
-
         [Switch] $Protected,
         [Switch] $Force
     )
@@ -632,8 +615,6 @@ function Backup-CVVirtualMachine {
                 }
             }
             else {
-                $subclientObj = $null
-
                 if ($PSCmdlet.ParameterSetName -eq 'ByName') {
                     $clientObj = Get-CVClient -Name $ClientName
                     if ($null -ne $clientObj) {
@@ -661,45 +642,10 @@ function Backup-CVVirtualMachine {
                 }
             }
 
-            $jobObj = GetVirtualMachineJobObject
-
-            if ($PSCmdlet.ParameterSetName -eq 'ById') {
-                $jobObj['clientId'] = $vmObj.pseudoClient.clientId
-            }
-            else {
-                $jobObj['clientId'] = $ClientObject.clientId
-            }
-
-            $jobObj['vmName'] = $vmObj.name
-            $jobObj['backupLevel'] = $BackupType.value__
-
-            if ($vmObj.vmStatus -eq 1) {
-                $jobObj['subclientId']  = $vmObj.subclientId
-            }
-            else { #This condition will be executed when provided VM has never been backed-up
-                if (-not [String]::IsNullOrEmpty($SubclientName)) {
-                    $subclientObj = $ClientObject | Get-CVSubclient -Name $SubclientName
-                    if ($null -eq $subclientObj) { 
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient not found having name [$SubclientName] for client [$ClientName]"      
-                        return
-                    }
-                }
-                else {
-                    $globalsObj = Get-CVCommCellGlobals 
-                    $SubclientName = $globalsObj.defaultSubclient 
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient name not provided...retrieving default subclient"
-                    $subclientObj = $ClientObject | Get-CVSubclient -Name $SubclientName
-                    if ($null -eq $subclientObj) {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): subclient not found having name [$SubclientName]"
-                        return
-                    }
-                }
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine has never been backed-up...adding to subclient [$($subclientObj.subclientName)]"
-                $jobObj['subclientId'] = $subclientObj.subclientId
-            }
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
 
             $headerObj = Get-CVRESTHeader $sessionObj
-            $body = (PrepareBackupTaskBodyJson $jobObj $vmObj.strGUID).body
+            $body = ''
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
@@ -852,8 +798,9 @@ function Get-CVVirtualMachineLiveMount {
                 }
             }
 
-            if ($vmObj.vmStatus -ne 1) {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] is not protected"
+            if ($vmObj.vmStatus -ne [CVVSAVMStatus]::PROTECTED) {
+                [CVVSAVMStatus] $status = $vmObj.vmStatus
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] has unsupported status [$status]"
                 return
             }
 
@@ -1057,8 +1004,9 @@ function Mount-CVVirtualMachine {
                 }
             }
                 
-            if ($vmObj.vmStatus -ne 1) {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] is not protected"
+            if ($vmObj.vmStatus -ne [CVVSAVMStatus]::PROTECTED) {
+                [CVVSAVMStatus] $status = $vmObj.vmStatus
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] has unsupported status [$status]"
                 return
             }
 
@@ -1361,6 +1309,8 @@ function Restore-CVVirtualMachine {
                     $resourcePoolAttr.Mandatory = $true
                     $resourcePoolAttr.HelpMessage = 'out-of-place restore resource pool'
                     $resourcePoolAttrColl.Add($resourcePoolAttr)
+                    $resourcePoolAttrAllowEmpty = New-Object System.Management.Automation.AllowEmptyStringAttribute
+                    $resourcePoolAttrColl.Add($resourcePoolAttrAllowEmpty)
                     $resourcePoolParam = New-Object System.Management.Automation.RuntimeDefinedParameter('ResourcePool', [String], $resourcePoolAttrColl)
                     $paramDictionary.Add('ResourcePool', $resourcePoolParam)
     
@@ -1369,6 +1319,8 @@ function Restore-CVVirtualMachine {
                     $vmFolderAttr.Mandatory = $true
                     $vmFolderAttr.HelpMessage = 'out-of-place restore VM folder path'
                     $vmFolderAttrColl.Add($vmFolderAttr)
+                    $vmFolderAttrAllowEmpty = New-Object System.Management.Automation.AllowEmptyStringAttribute
+                    $vmFolderAttrColl.Add($vmFolderAttrAllowEmpty)
                     $vmFolderParam = New-Object System.Management.Automation.RuntimeDefinedParameter('VMFolder', [String], $vmFolderAttrColl)
                     $paramDictionary.Add('VMFolder', $vmFolderParam)
     
@@ -1516,9 +1468,12 @@ function Restore-CVVirtualMachine {
                 }
             }
                 
-            if ($vmObj.vmStatus -ne 1) {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] is not protected"
-                return
+            if ($vmObj.vmStatus -ne [CVVSAVMStatus]::PROTECTED) {
+                if ($vmObj.vmStatus -eq [CVVSAVMStatus]::BACKED_UP_WITH_ERROR -and (-not $Force.IsPresent)) {
+                    [CVVSAVMStatus] $status = $vmObj.vmStatus
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine [$($vmObj.name)] has unsupported status [$status]"
+                    return
+                }
             }
     
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
@@ -1580,8 +1535,12 @@ function Restore-CVVirtualMachine {
                         $vmware = @{ }
                         $vmware.Add('esxHost', $PSBoundParameters.DestHost)
                         $vmware.Add('dataStore', $PSBoundParameters.Datastore)
-                        $vmware.Add('resourcePool', $PSBoundParameters.ResourcePool)
-                        $vmware.Add('vmfolder', $PSBoundParameters.VMFolder)
+                        if (-not [String]::IsNullOrEmpty($PSBoundParameters.ResourcePool)) {
+                            $vmware.Add('resourcePool', $PSBoundParameters.ResourcePool)
+                        }
+                        if (-not [String]::IsNullOrEmpty($PSBoundParameters.VMFolder)) {
+                            $vmware.Add('vmfolder', $PSBoundParameters.VMFolder)
+                        }
                         $vmware.Add('newName', $PSBoundParameters.VMDisplayName)
                         $destinationInfo.Add('vmware', $vmware)
                     }
@@ -2009,174 +1968,6 @@ function PrepareMountTaskBodyJson ([HashTable] $JobObj) {
         $vmLiveMountReq.Add('expirationInHours', $JobObj.expirationInHours)
         $createTaskReq.Add('VMLiveMountReq', $vmLiveMountReq)
         
-        $body = $createTaskReq | ConvertTo-Json -Depth 10
-        return @{ 'body' = $body }
-    }
-    catch {
-        throw $_
-    }
-}
-
-
-<# PrepareBackupTaskBodyJson
-{
-    "processinginstructioninfo": {
-        "locale": {
-            "_type_": 66,
-            "localeId": 0
-        },
-        "formatFlags": {
-            "skipIdToNameConversion": true
-        },
-        "user": {
-            "_type_": 13,
-            "userName": "",
-            "userId": 1
-        }
-    },
-    "taskInfo": {
-        "associations": [
-            {
-                "srmReportSet": 0,
-                "subclientId": 8,
-                "srmReportType": 0,
-                "commCellId": 2,
-                "_type_": 3
-            }
-        ],
-        "task": {
-            "taskType": 1,
-            "ownerName": "admin",
-            "initiatedFrom": 1,
-            "policyType": 0,
-            "taskFlags": {
-                "disabled": false
-            }
-        },
-        "subTasks": [
-            {
-                "subTask": {
-                    "subTaskName": "web sub task",
-                    "subTaskType": 2,
-                    "operationType": 2
-                },
-                "options": {
-                    "backupOpts": {
-                        "collectMetaInfo": false,
-                        "backupLevel": 2,
-                        "runIncrementalBackup": true,
-                        "isSpHasInLineCopy": false,
-                        "vsaBackupOptions": {
-                            "backupFailedVMsOnly": false,
-                            "selectiveVMInfo": [
-                                {
-                                    "vmGuid": "501b94e8-284d-cfac-c9d5-12cada55f66d"
-                                }
-                            ]
-                        }
-                    },
-                    "adminOpts": {
-                        "updateOption": {
-                            "invokeLevel": 0
-                        }
-                    }
-                }
-            }
-        ]
-    }
-}
-#>
-function PrepareBackupTaskBodyJson ([Hashtable] $jobObj, [String] $VMGuid) {
-
-    try {
-        #Building json
-        
-        $createTaskReq = [ordered] @{ }
-        #processinginstructioninfo
-        $processingInstructionInfo = [ordered]@{ }
-        $locale = @{ }
-        $locale.Add('_type_', 66)
-        $locale.Add('localeId', 0)
-        $formatFlags = @{ }
-        $formatFlags.Add('skipIdToNameConversion', $True)
-        $user = @{ }
-        $user.Add('_type_', 13)
-        $user.Add('userName', '')
-        $user.Add('userId', 1)
-        $processingInstructionInfo.Add('locale', $locale)
-        $processingInstructionInfo.Add('formatFlags', $formatFlags)
-        $processingInstructionInfo.Add('user', $user)
-
-        #taskInfo
-        $taskInfo = [ordered]@{ }
-        $task = [ordered]@{ }
-        $owner = $global:CVConnectionPool.user
-        $task.Add('policyType', 0)
-        $task.Add('taskType', 1)
-        $task.Add('initiatedFrom', 1)
-        $task.Add('ownerName', $owner)
-        $taskFlags = @{ }
-        $taskFlags.Add('disabled', $False)
-        $task.Add('taskFlags', $taskFlags)
-
-        #associations
-        [System.Collections.ArrayList] $associations_arr = @()
-        $temp_array = [ordered]@{ }
-        $temp_array.Add('srmReportSet', 0)
-        $temp_array.Add('clientId', $jobObj.clientId)
-        $temp_array.Add('subclientId', $jobObj.subclientId)
-        $temp_array.Add('srmReportType', 0)
-        $temp_array.Add('commCellId', $jobObj.commCellId)
-        $temp_array.Add('_type_', 3)
-        $null = $associations_arr.Add($temp_array)
-
-        #subtasks
-        [System.Collections.ArrayList] $subTasks_arr = @()
-        $subTasks_map = [ordered]@{ }
-        $subTask = [ordered]@{ }
-        $subTask.Add('subTaskName', 'web sub task')
-        $subTask.Add('subTaskType', 2)
-        $subTask.Add('operationType', $jobObj.backupLevel)
-        $subTasks_map.Add('subTask', $subTask)
-
-        #options
-        $options = [ordered]@{ }
-        $backupOpts = [ordered]@{ }
-        $backupOpts.Add('backupLevel', $jobObj.backupLevel)
-        $backupOpts.Add('runIncrementalBackup', $jobObj.runIncrementalBackup)
-        $backupOpts.Add('isSpHasInLineCopy', $False)
-        $backupOpts.Add('collectMetaInfo', $jobObj.collectMetaInfo)
-        $vsaBackupOptions = @{ }
-        $vsaBackupOptions.Add('backupFailedVMsOnly', $jobObj.backupFailedVMs)
-        [System.Collections.ArrayList] $selectiveVMInfo_arr = @()
-        $temp_array = @{ }
-        $temp_array.Add('vmGuid', $VMGuid)
-        $null = $selectiveVMInfo_arr.Add($temp_array)
-        $vsaBackupOptions.Add('selectiveVMInfo', $selectiveVMInfo_arr)
-        $backupOpts.Add('vsaBackupOptions', $vsaBackupOptions)
-        $options.Add('backupOpts', $backupOpts)
-
-        #adminOpts
-        $adminOpts = @{ }
-        $updateOption = @{ }
-        $updateOption.Add('invokeLevel', 0)
-        $adminOpts.Add('updateOption', $updateOption)
-        $options.Add('adminOpts', $adminOpts)
-        $subTasks_map.Add('options', $options)
-
-        #SubTasks Array
-        $null = $subTasks_arr.Add($subTasks_map)
-
-        #Add sub sections to taskInfo
-        $taskInfo.Add('associations', $associations_arr)
-        $taskInfo.Add('task', $task)
-        $taskInfo.Add('subTasks', $subTasks_arr)
-        
-        #Add subItems to the root
-        $createTaskReq.Add('processinginstructioninfo', $processingInstructionInfo)
-        $createTaskReq.Add('taskInfo', $taskInfo)
-
-        #End of Json prep
         $body = $createTaskReq | ConvertTo-Json -Depth 10
         return @{ 'body' = $body }
     }
