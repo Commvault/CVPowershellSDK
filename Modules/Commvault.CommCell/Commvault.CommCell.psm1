@@ -197,10 +197,10 @@ function Get-CVClient {
     If the Name parameter is provided, a default subset of client properties will be output for the specified client. 
     
 .PARAMETER Name
-    Get detail properties for client by Name.
+    Get detail properties for client specified by Name.
 
 .PARAMETER Id
-    Get detail properties for client Id.
+    Get detail properties for client specified by Id.
 
 .PARAMETER AdditionalSettings
     Retrieves additional setting properties for each client in the list.
@@ -222,6 +222,12 @@ function Get-CVClient {
 
 .EXAMPLE
     Get-CVClient -Name ProdTest1 -AllProperties
+
+.EXAMPLE
+	Get-CVClient -Id 2
+
+.EXAMPLE
+	Get-CVClient -Id 2 -AllProperties
 
 .EXAMPLE
     Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client
@@ -275,7 +281,13 @@ function Get-CVClient {
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
 
         try {
-            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            if ($PSCmdlet.ParameterSetName -eq 'ById' -and $AllProperties.IsPresent) {
+                $sessionObj = Get-CVSessionDetail 'GetClientProperties'
+            }
+            else {
+                $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            }
+
             $endpointSave = $sessionObj.requestProps.endpoint
 
             if ($PSCmdlet.ParameterSetName -eq 'ByName' -or
@@ -296,85 +308,102 @@ function Get-CVClient {
         try {
             $sessionObj.requestProps.endpoint = $endpointSave
 
-            $headerObj = Get-CVRESTHeader $sessionObj
-            $body = ''
-            $payload = @{ }
-            $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
-            $validate = 'clientProperties'
-
-            $response = Submit-CVRESTRequest $payload $validate
-
-            $clientList = @{ }
-
-            if ($response.IsValid) {
-                foreach ($clientProp in $response.Content.clientProperties) {
-                    if ($PSCmdlet.ParameterSetName -eq 'ByName') {
-                        if ($clientProp.client.clientEntity.clientName -eq $Name) {
-                            $foundClient = $True
-                        }
-                    }
-                    elseif ($PSCmdlet.ParameterSetName -eq 'ById') {
-                        if ($clientProp.client.clientEntity.clientId -eq $Id) {
-                            $foundClient = $True
-                        }
-                    }
-
-                    if ($null -eq $foundClient -or $foundClient -eq $True) {
-                        $clientSubProp = @{ }
-                        $clientSubProp.Add('clientId', $clientProp.client.clientEntity.clientId)
-                        $clientSubProp.Add('clientName', $clientProp.client.clientEntity.clientName)
-                        $clientSubProp.Add('clienthostName', $clientProp.client.clientEntity.hostName)
-                        $clientSubProp.Add('type', $clientProp.client.clientEntity._type_)
-                        $clientSubProp.Add('clientIdGUID', $clientProp.client.clientEntity.clientGUID)
-                        $clientSubProp.Add('cvdPort', $clientProp.client.cvdPort)
-                       
-                        if ($AdditionalSettings) {
-                            $clientSubProp.Add('AdditionalSettings', (GetClientAdditionalSettings -ClientId $clientProp.client.clientEntity.clientId))
-                        }
+            if ($PSCmdlet.ParameterSetName -eq 'ById' -and $AllProperties.IsPresent) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id)
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $body = ''
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = 'clientProperties'
     
-                        $clientList.Add($clientProp.client.clientEntity.clientName, $clientSubProp)
-                    }
-
-                    if ($foundClient -eq $True) {
-                        break
-                    }
-                }
-            }
-
-            if ($clientList.Count -eq 0) {
-                if ($PSCmdlet.ParameterSetName -eq 'ByName') {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
-                }
-                elseif ($PSCmdlet.ParameterSetName -eq 'ById') {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having id [$Id]"
-                }
-                else {
-                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no clients not found"
+                $response = Submit-CVRESTRequest $payload $validate
+    
+                if ($response.IsValid) {
+                    Write-Output $response.Content.clientProperties
                 }
             }
             else {
-                foreach ($key in $clientList.Keys) {
-                    $client = $clientList[$key]
-                    if ($AllProperties -or $Version -or $TimeZone) {
-                        $propertiesObj = GetClientProperties -ClientObject $client
-                        if ($propertiesObj.IsValid) {
-                            if ($AllProperties) {
-                                Write-Output $propertiesObj.Content.clientProperties
-                            }
-                            else {
-                                if ($Version) {
-                                    $client.Add('Version', $propertiesObj.Content.clientProperties[0].client.versionInfo)
-                                }
-                                if ($TimeZone) {
-                                    $client.Add('TimeZone', $propertiesObj.Content.clientProperties[0].client.TimeZone)
-                                }
-                                Write-Output $client
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $body = ''
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = 'clientProperties'
+    
+                $response = Submit-CVRESTRequest $payload $validate
+    
+                $clientList = @{ }
+    
+                if ($response.IsValid) {
+                    foreach ($clientProp in $response.Content.clientProperties) {
+                        if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                            if ($clientProp.client.clientEntity.clientName -eq $Name) {
+                                $foundClient = $True
                             }
                         }
+                        elseif ($PSCmdlet.ParameterSetName -eq 'ById') {
+                            if ($clientProp.client.clientEntity.clientId -eq $Id) {
+                                $foundClient = $True
+                            }
+                        }
+
+                        if ($null -eq $foundClient -or $foundClient -eq $True) {
+                            $clientSubProp = @{ }
+                            $clientSubProp.Add('clientId', $clientProp.client.clientEntity.clientId)
+                            $clientSubProp.Add('clientName', $clientProp.client.clientEntity.clientName)
+                            $clientSubProp.Add('clienthostName', $clientProp.client.clientEntity.hostName)
+                            $clientSubProp.Add('type', $clientProp.client.clientEntity._type_)
+                            $clientSubProp.Add('clientIdGUID', $clientProp.client.clientEntity.clientGUID)
+                            $clientSubProp.Add('cvdPort', $clientProp.client.cvdPort)
+                           
+                            if ($AdditionalSettings) {
+                                $clientSubProp.Add('AdditionalSettings', (GetClientAdditionalSettings -ClientId $clientProp.client.clientEntity.clientId))
+                            }
+        
+                            $clientList.Add($clientProp.client.clientEntity.clientName, $clientSubProp)
+                        }
+    
+                        if ($foundClient -eq $True) {
+                            break
+                        }
+                    }
+                }
+    
+                if ($clientList.Count -eq 0) {
+                    if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    }
+                    elseif ($PSCmdlet.ParameterSetName -eq 'ById') {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having id [$Id]"
                     }
                     else {
-                        Write-Output $client
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no clients not found"
+                    }
+                }
+                else {
+                    foreach ($key in $clientList.Keys) {
+                        $client = $clientList[$key]
+                        if ($AllProperties -or $Version -or $TimeZone) {
+                            $propertiesObj = GetClientProperties -ClientObject $client
+                            if ($propertiesObj.IsValid) {
+                                if ($AllProperties) {
+                                    Write-Output $propertiesObj.Content.clientProperties
+                                }
+                                else {
+                                    if ($Version) {
+                                        $client.Add('Version', $propertiesObj.Content.clientProperties[0].client.versionInfo)
+                                    }
+                                    if ($TimeZone) {
+                                        $client.Add('TimeZone', $propertiesObj.Content.clientProperties[0].client.TimeZone)
+                                    }
+                                    Write-Output $client
+                                }
+                            }
+                        }
+                        else {
+                            Write-Output $client
+                        }
                     }
                 }
             }
@@ -819,17 +848,27 @@ function Set-CVClient {
 .PARAMETER Name
     Set properties on client specified by Name.
 
+.PARAMETER Id
+    Set properties on client specified by Id.
+
 .PARAMETER Properties
-    Piped Properties set. 
+    Piped-in Properties set. 
 
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
 .EXAMPLE
-    1. Get current props: $props = Get-CVClient -Name carbonwincs1
-    2. Add description prop: $props.Add('clientDescription', 'client-level description modified with REST API Post request')
-    3. Or change client name prop: $props.clientName = 'newClientName'
-    3. Set the props: $props | Set-CVClient -Name carbonwincs1
+    $clientProps = Get-CVClient -Name 'carbonwincs1' -AllProperties
+    PS C:\>$clientProps.client.displayName='carbonwincs1-1'
+    PS C:\>$clientProps.client.clientDescription = 'carbonwincs1-1 description modified with REST API Post request'
+    PS C:\>$clientProps.client | Set-CVClient -Name 'carbonwincs1' -Force
+
+.EXAMPLE
+    $clientId = (Get-CVVirtualMachine -Name INSIELVM-92-pl).client.clientId
+    PS C:\>$clientProps = Get-CVClient -Id $clientId -AllProperties
+    PS C:\>$clientProps.client.displayName='INSIELVM-92-pl'
+    PS C:\>$clientProps.client.clientDescription = 'INSIELVM-92-pl description modified with REST API Post request'
+    PS C:\>$clientProps.client | Set-CVClient -Id $clientId
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -839,13 +878,18 @@ function Set-CVClient {
     Company: Commvault
 #>
     [Alias('Set-CVClientProps')]
-    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
     [OutputType([PSCustomObject])]
     param(
         [Alias('ClientName')]
-        [Parameter(Mandatory = $True)]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
 
         [Alias('ClientProps')]
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
@@ -871,13 +915,17 @@ function Set-CVClient {
         try {
             $sessionObj.requestProps.endpoint = $endpointSave
             
-            $clientObj = Get-CVClient -Name $Name
-            if ($null -eq $clientObj) { 
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
-                return
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id) 
             }
-
-            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
+            else {
+                $clientObj = Get-CVClient -Name $Name
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
+            }
 
             <#
             {
@@ -897,16 +945,16 @@ function Set-CVClient {
             #>
             $client = @{}
             $client.Add('client', $Properties)
-            $entity = @{}
-            $entity.Add('clientName', $clientObj.clientName)
-            [System.Collections.ArrayList] $entity_arr = @()
-            $null = $entity_arr.Add($entity)
-            $association = @{ }
-            $association.Add('entity', $entity_arr)
+            #$entity = @{}
+            #$entity.Add('clientName', $clientObj.clientName)
+            #[System.Collections.ArrayList] $entity_arr = @()
+            #$null = $entity_arr.Add($entity)
+            #$association = @{ }
+            #$association.Add('entity', $entity_arr)
     
             $body = @{}
             $body.Add('clientProperties', $client)
-            $body.Add('association', $association)
+            #$body.Add('association', $association)
             $body = ($body | ConvertTo-Json -Depth 10)
 
             $headerObj = Get-CVRESTHeader $sessionObj
@@ -915,18 +963,33 @@ function Set-CVClient {
             $payload.Add('body', $body)
             $validate = 'response'
 
-            if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
-                $response = Submit-CVRESTRequest $payload $validate
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
             }
             else {
-                $response = Submit-CVRESTRequest $payload $validate -DryRun
+                if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
             }
 
             if ($response.IsValid) {
                 Write-Output $response.Content
             }
             else {
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): set client properties request failed for group [$($clientObj.clientName)]"
+                if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): set client properties request failed for group [$Id]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): set client properties request failed for group [$($clientObj.clientName)]"
+                }
             }
         }
         catch {
