@@ -123,15 +123,12 @@ function Connect-CVServer {
     process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
 
         try {
-            $token = (GetSessionToken $Server $User $Password $Port)
+            $response = (GetSessionToken $Server $User $Password $Port)
 
-            if ($null -eq $token) {
-                Write-Host 'CommServe login failed'
-            }
-            else {
+            if ($response.IsValid) {
                 $global:CVConnectionPool = @{
                     server = $Server
-                    token  = $token
+                    token  = $response.Content.token
                     user   = $User
                     port   = $Port
                 }
@@ -140,7 +137,13 @@ function Connect-CVServer {
                     $_.name -notmatch 'token' | Out-Null
                 }
 
-                Write-Host 'CommServe login successful'
+                ((Get-Variable -Scope Global CVConnectionPool).Value | Format-Table) | Out-Host
+            }
+            else {
+                Write-Host $response.Content
+                if (HasProperty $response.Content 'errList') {
+                    Write-Host $response.Content.errList[0]
+                }
             }
         }
         catch {
@@ -416,29 +419,60 @@ function  PrepareBaseUrl ([String] $Server, [String] $Port) {
 }
 
 
-function GetSessionToken ([String] $Server, [String] $User, [SecureString] $SecurePassword, [String] $Port) {
+function GetSessionToken {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param (
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullorEmpty()]
+        [String] $Server,
 
-    try {
-        $method = 'Post'
-        $endpoint = 'Login'
-        $header = @{Accept = 'application/json'}
-        $encodedPassword = ConvertToBase64String(ConvertFromSecureString($SecurePassword))
-        $creds = @{ 
-            password = $encodedPassword
-            username = $User
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullorEmpty()]
+        [String] $User,
+
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullorEmpty()]
+        [SecureString] $SecurePassword,
+
+        [Parameter(Mandatory = $False)]
+        [String] $Port
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $validateProperty = 'token'
+            [PSCustomObject] $output = New-Object PSObject
+            $output | Add-Member -NotePropertyName 'IsValid' -NotePropertyValue ([String]::IsNullOrEmpty($validateProperty))
         }
-        $body = (ConvertTo-Json $creds)
-        $baseUrl = (PrepareBaseUrl $Server $Port)
-        $response = (ProcessRequest $header $body $baseUrl $endpoint $method)
-        if ($response.Status -eq 200) {
-            $token = ($response.Body | ConvertFrom-Json | Select-Object token).token
-            if ($null -ne $token -and $token.Length -ne 0) {
-                Write-Output $token
-            }
+        catch {
+            throw $_
         }
     }
-    catch {
-        throw $_
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+        try {
+            $method = 'Post'
+            $endpoint = 'Login'
+            $header = @{Accept = 'application/json'}
+            $encodedPassword = ConvertToBase64String(ConvertFromSecureString($SecurePassword))
+            $creds = @{ 
+                password = $encodedPassword
+                username = $User
+            }
+            $body = (ConvertTo-Json $creds)
+            $baseUrl = (PrepareBaseUrl $Server $Port)
+            $response = (ProcessRequest $header $body $baseUrl $endpoint $method)
+            ValidateResponse $response $output $ValidateProperty
+            Write-Output $output
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
     }
 }
 

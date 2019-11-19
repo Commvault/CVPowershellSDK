@@ -7,7 +7,7 @@ CVPowershellSDK uses the Commvault REST API to perform operations on a CommCell 
 Requirements
 ------------
 - Windows Powershell version 5.1 or above
-- Commvault Software v11 SP16 or later release with WebConsole installed
+- Commvault Software v11 SP16 or later release with WebServer installed
 
 Installation
 ------------
