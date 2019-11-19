@@ -126,6 +126,7 @@ function Connect-CVServer {
             $response = (GetSessionToken $Server $User $Password $Port)
 
             if ($response.IsValid) {
+                Write-Host 'CommServe login successful'
                 $global:CVConnectionPool = @{
                     server = $Server
                     token  = $response.Content.token
@@ -140,6 +141,7 @@ function Connect-CVServer {
                 ((Get-Variable -Scope Global CVConnectionPool).Value | Format-Table) | Out-Host
             }
             else {
+                Write-Host 'CommServe login failed'
                 Write-Host $response.Content
                 if (HasProperty $response.Content 'errList') {
                     Write-Host $response.Content.errList[0]
