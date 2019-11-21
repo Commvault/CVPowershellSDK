@@ -707,6 +707,14 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             }
     
+            'GetJobById' = @{
+        
+                Description = 'Get summary for specific job'
+                Endpoint    = 'Job/{jobId}'
+                Method      = 'Get'
+                Body        = ''
+            }
+    
             'Get-CVJobDetail' = @{
         
                 Description = 'Get job details for JobId'
@@ -828,15 +836,31 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             }
 
-            'GetStoragePolicyDetails' = @{
+            'GetStoragePolicyDetail' = @{
         
-                Description = 'Get storage policy details'
+                Description = 'Get storage policy detail'
                 Endpoint    = 'StoragePolicy/{storagePolicyId}'
                 #Endpoint    = 'StoragePolicy/{spId}?primaryCopyOnly={primaryCopyOnly}&userId={userId}'
                 Method      = 'Get'
                 Body        = ''
             }
 
+            'Get-CVOperationWindow' = @{
+        
+                Description = 'Get operation window list'
+                Endpoint    = 'OperationWindow/OpWindowList'
+                Method      = 'Get'
+                Body        = ''
+            }
+            
+            'GetOperationWindowDetail' = @{
+        
+                Description = 'Get operation window detail'
+                Endpoint    = 'OperationWindow/{OperationWindowId}'
+                Method      = 'Get'
+                Body        = ''
+            }
+            
             #--------------- Commvault.SQLServer ---------------
 
             'Get-CVSQLClientDetail' = @{

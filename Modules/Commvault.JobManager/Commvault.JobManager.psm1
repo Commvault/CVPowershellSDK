@@ -34,14 +34,14 @@ function Get-CVJob {
 .PARAMETER CompletedTime
     Filter output based on completed job lookup time expressed in hours.
 
-.PARAMETER AllProperties
-    Retrieves all properties for the jobs in the result set.
+.PARAMETER Details
+    Retrieves the details for a job.
 
 .EXAMPLE
     Get-CVJob
     
 .EXAMPLE
-    Get-CVJob -AllProperties
+    Get-CVJob -Details
     
 .EXAMPLE
     Get-CVJob -ClientName VC2KR2
@@ -71,34 +71,43 @@ function Get-CVJob {
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     [OutputType([PSCustomObject])]
     param(
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [String] $ClientName,
 
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [String] $SubclientName,
 
         [Alias('Filter')]
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [String] $JobFilter,
 
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [String] $JobCategory,
 
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [Int32] $CompletedTime = 24, # default 24 hours
 
-        [Switch] $AllProperties
+        [Switch] $Details
     )
     
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
 
         try {
-            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                $sessionObj = Get-CVSessionDetail 'GetJobById'
+            }
+            else {
+                $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            }
             $endpointSave = $sessionObj.requestProps.endpoint
             $subclientId = $null
         }
@@ -113,87 +122,115 @@ function Get-CVJob {
         {
             $sessionObj.requestProps.endpoint = $endpointSave
 
-            if (-not [String]::IsNullOrEmpty($ClientName)) {
-                $clientObj = Get-CVClient -Client $ClientName
-                if ($null -ne $clientObj) { 
-                    $sessionObj.requestProps.endpoint += '&clientId=' + $clientObj.clientId
+            if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{jobId}', $Id)
+
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $body = ''
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = 'jobs'
+                
+                $response = Submit-CVRESTRequest $payload $validate
+    
+                if ($response.IsValid) 
+                {
+                    if ($Details) {
+                        Write-Output (Get-CVJobDetail -Id $response.Content.jobs.jobSummary.jobId).detailInfo
+                    }
+                    else {
+                        Write-Output $response.Content.jobs.jobSummary
+                    }
                 }
-            }
-
-            if (-not [String]::IsNullOrEmpty($SubclientName)) {
-                if ([String]::IsNullOrEmpty($ClientName)) {
-                    $ClientName = Read-Host 'ClientName'
+                else 
+                { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): job Id [$Id] not found"
                 }
-
-                $subclientObj = Get-CVSubclient -Name $SubclientName -ClientName $ClientName
-
-                if ($null -ne $subclientObj) { 
-                    $subclientId = $subclientObj.subclientId 
-                } 
-            }
-
-            if (-not [String]::IsNullOrEmpty($JobFilter)) {
-                $sessionObj.requestProps.endpoint += '&jobFilter=' + $JobFilter
-            }
-
-            if (-not [String]::IsNullOrEmpty($JobCategory)) {
-                $sessionObj.requestProps.endpoint += '&jobCategory=' + $JobCategory
-            }
-
-            if ($CompletedTime) {
-                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{completedJobLookupTime}', ($CompletedTime * 3600))
             }
             else {
-                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{completedJobLookupTime}', $null)
-            }
-
-            $headerObj = Get-CVRESTHeader $sessionObj
-            $body = ''
-            $payload = @{ }
-            $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
-            $validate = 'jobs'
-            
-            $response = Submit-CVRESTRequest $payload $validate
-
-            if ($response.IsValid) 
-            {
-                if ($subclientId) 
+                if (-not [String]::IsNullOrEmpty($ClientName)) {
+                    $clientObj = Get-CVClient -Client $ClientName
+                    if ($null -ne $clientObj) { 
+                        $sessionObj.requestProps.endpoint += '&clientId=' + $clientObj.clientId
+                    }
+                }
+    
+                if (-not [String]::IsNullOrEmpty($SubclientName)) {
+                    if ([String]::IsNullOrEmpty($ClientName)) {
+                        $ClientName = Read-Host 'ClientName'
+                    }
+    
+                    $subclientObj = Get-CVSubclient -Name $SubclientName -ClientName $ClientName
+    
+                    if ($null -ne $subclientObj) { 
+                        $subclientId = $subclientObj.subclientId 
+                    } 
+                }
+    
+                if (-not [String]::IsNullOrEmpty($JobFilter)) {
+                    $sessionObj.requestProps.endpoint += '&jobFilter=' + $JobFilter
+                }
+    
+                if (-not [String]::IsNullOrEmpty($JobCategory)) {
+                    $sessionObj.requestProps.endpoint += '&jobCategory=' + $JobCategory
+                }
+    
+                if ($CompletedTime) {
+                    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{completedJobLookupTime}', ($CompletedTime * 3600))
+                }
+                else {
+                    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{completedJobLookupTime}', $null)
+                }
+    
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $body = ''
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = 'jobs'
+                
+                $response = Submit-CVRESTRequest $payload $validate
+    
+                if ($response.IsValid) 
                 {
-                    $foundSubclientJob = $False
-                    foreach ($job in $response.Content.jobs) 
+                    if ($subclientId) 
                     {
-                        if ($job.jobSummary.subclient.subclientId -eq $subclientId) 
+                        $foundSubclientJob = $False
+                        foreach ($job in $response.Content.jobs) 
                         {
-                            $foundSubclientJob = $True
-                            if ($AllProperties) {
-                                Write-Output (Get-CVJobDetail $job.jobSummary.jobId).detailInfo
+                            if ($job.jobSummary.subclient.subclientId -eq $subclientId) 
+                            {
+                                $foundSubclientJob = $True
+                                if ($Details) {
+                                    Write-Output (Get-CVJobDetail $job.jobSummary.jobId).detailInfo
+                                }
+                                else {
+                                    Write-Output $job.jobSummary
+                                }
+                            }
+                        }
+                        if (-not $foundSubclientJob) {
+                            Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no jobs found for subclient [$SubclientName]"
+                        }
+                    }
+                    else 
+                    { 
+                        foreach ($job in $response.Content.jobs) 
+                        {
+                            if ($Details) {
+                                Write-Output (Get-CVJobDetail -Id $job.jobSummary.jobId).detailInfo
                             }
                             else {
                                 Write-Output $job.jobSummary
                             }
                         }
                     }
-                    if (-not $foundSubclientJob) {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no jobs found for subclient [$SubclientName]"
-                    }
                 }
                 else 
                 { 
-                    foreach ($job in $response.Content.jobs) 
-                    {
-                        if ($AllProperties) {
-                            Write-Output (Get-CVJobDetail $job.jobSummary.jobId).detailInfo
-                        }
-                        else {
-                            Write-Output $job.jobSummary
-                        }
-                    }
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no jobs found"
                 }
-            }
-            else 
-            { 
-                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no jobs found"
             }
         }
         catch 
@@ -215,8 +252,8 @@ function Get-CVJobDetail {
 .DESCRIPTION
     Gets extended details for a job. JobId must be valid.
 
-.PARAMETER JobId
-    Gets extended details for the job specified by JobId.
+.PARAMETER Id
+    Gets extended details for the job specified by Id.
 
 .PARAMETER JobObject
     Gets extended details for the job specified by piped JobObject.
@@ -225,19 +262,19 @@ function Get-CVJobDetail {
     Get-CVJobDetail
     
 .EXAMPLE
-    Get-CVJobDetail -JobId 175
+    Get-CVJobDetail -Id 175
 
 .EXAMPLE
     Get-CVJob | Get-CVJobDetail
 
 .EXAMPLE
-    Get-CVJobDetail -JobId 175 | Select-Object -ExpandProperty detailInfo
+    Get-CVJobDetail -Id 175 | Select-Object -ExpandProperty detailInfo
 
 .EXAMPLE
-    Get-CVJobDetail -JobId 175 | Select-Object -ExpandProperty generalInfo
+    Get-CVJobDetail -Id 175 | Select-Object -ExpandProperty generalInfo
 
 .EXAMPLE
-    Get-CVJobDetail -JobId 175 | Select-Object -ExpandProperty progressInfo
+    Get-CVJobDetail -Id 175 | Select-Object -ExpandProperty progressInfo
 
 .OUTPUTS
     Outputs [PSCustomObject] containing result.
@@ -250,9 +287,10 @@ function Get-CVJobDetail {
     [CmdletBinding(DefaultParameterSetName = 'ById')]
     [OutputType([PSCustomObject])]
     param(
+        [Alias('JobId')]
         [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
         [ValidateNotNullorEmpty()]
-        [Int32] $JobId,
+        [Int32] $Id,
 
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
@@ -278,7 +316,7 @@ function Get-CVJobDetail {
             $headerObj = Get-CVRESTHeader $sessionObj
             $jobObj = @{ }
             if ($PSCmdlet.ParameterSetName -eq 'ById') {
-                $jobObj.Add('jobId', $JobId)
+                $jobObj.Add('jobId', $Id)
             }
             else {
                 $jobObj.Add('jobId', $JobObject.jobId)
