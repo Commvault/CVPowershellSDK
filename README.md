@@ -11,8 +11,12 @@ Requirements
 
 Installation
 ------------
-After downloading, launch a Powershell session with Administrator privileges and execute:
-- PS > Install-CVModules.ps1
+After downloading and if necessary, unblock the downloaded Powershell modules:
+- PS C:\Users\someone\Downloads> dir -Recurse .\CVPowershellSDK\ | Unblock-File
+See: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/unblock-file?view=powershell-6
+
+Next, launch a Powershell session with Administrator privileges and execute:
+- PS C:\Users\someone\Downloads\CVPowershellSDK> .\Install-CVModules.ps1
 
 Usage
 -----
@@ -29,7 +33,6 @@ Sample Package Function Table
 - Function: Get-CVAlert                                        in Module: Commvault.CommCell
 - Function: Get-CVSubclient                                    in Module: Commvault.CommCell
 - Function: Set-CVClient                                       in Module: Commvault.CommCell
-- Function: Add-CVClient                                       in Module: Commvault.CommCell
 - Function: Set-CVClientGroup                                  in Module: Commvault.CommCell
 - Function: Backup-CVClientFileSystem                          in Module: Commvault.FileSystem
 - Function: Restore-CVClientFileSystem                         in Module: Commvault.FileSystem
@@ -80,7 +83,7 @@ Sample Package Function Table
 - Function: Mount-CVVirtualMachine                             in Module: Commvault.VirtualServer
 - Function: Remove-CVVirtualMachine                            in Module: Commvault.VirtualServer
 - Function: Restore-CVVirtualMachineOutofPlace                 in Module: Commvault.VirtualServer
-- Function: Get-CVVirtualMachineLiveMount                   in Module: Commvault.VirtualServer
+- Function: Get-CVVirtualMachineLiveMount                      in Module: Commvault.VirtualServer
 - Function: Backup-CVVirtualMachine                            in Module: Commvault.VirtualServer
 - Function: Get-CVVirtualMachineBackupTime                     in Module: Commvault.VirtualServer
 

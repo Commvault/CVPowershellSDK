@@ -9,6 +9,8 @@
 
 Clear-Host
 
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 $RootDir = $PSScriptRoot
 
 $WorkingDir = Join-Path $RootDir 'Modules'
