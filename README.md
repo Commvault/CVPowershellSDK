@@ -12,11 +12,11 @@ Requirements
 Installation
 ------------
 After downloading and if necessary, unblock the downloaded Powershell modules:
-- PS C:\Users\someone\Downloads> dir -Recurse .\CVPowershellSDK\ | Unblock-File
+- PS C:\Users\UserName\Downloads> dir -Recurse .\CVPowershellSDK\ | Unblock-File
 - See: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/unblock-file?view=powershell-6
 
 Next, launch a Powershell session with Administrator privileges and execute:
-- PS C:\Users\someone\Downloads\CVPowershellSDK> .\Install-CVModules.ps1
+- PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Install-CVModules.ps1
 
 Usage
 -----
@@ -90,7 +90,7 @@ Sample Package Function Table
 Uninstallation
 --------------
 Launch a Powershell session with Administrator privileges and execute:
-PS > Uninstall-CVModules.ps1
+- PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Uninstall-CVModules.ps1
 
 Contributions
 =============
