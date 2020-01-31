@@ -106,6 +106,7 @@ Uninstallation
 --------------
 If the Commvault PowerShell modules were installed with the AllUsers scope:
 - Launch a PowerShell session with Administrator privileges and execute: PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Uninstall-CVModules.ps1
+
 If the Commvault PowerShell modules were installed with the CurrentUser scope:
 - Launch a PowerShell session with current user privileges and execute: PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Uninstall-CVModules.ps1
 
