@@ -1,29 +1,42 @@
 CVPowershellSDK
 ===============
-CVPowershellSDK is a Windows Powershell package for Commvault software.
+CVPowershellSDK is a Windows PowerShell package for Commvault software.
 
 CVPowershellSDK uses the Commvault REST API to perform operations on a CommCell via the WebConsole.
 
 Requirements
 ------------
-- Windows Powershell version 5.1 or above
+- Windows PowerShell version 5.1 or above
 - Commvault Software v11 SP16 or later release with WebServer installed
 
 Installation
 ------------
-After downloading and if necessary, unblock the downloaded Powershell modules:
+After downloading and extracting the package, if necessary unblock the downloaded PowerShell modules:
 - PS C:\Users\UserName\Downloads> dir -Recurse .\CVPowershellSDK\ | Unblock-File
 - See: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/unblock-file?view=powershell-6
 
-Next, launch a Powershell session with Administrator privileges and execute:
-- PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Install-CVModules.ps1
+ONLINE INSTALL
+To install the modules for all users:
+- Launch a PowerShell session with Administrator privileges and execute: C:\Users\UserName\Downloads\CVPowershellSDK>.\Install-CVModules.ps1 -Scope AllUsers (this is default)
+
+To install the modules for the current user only:
+- Launch a PowerShell session with current user privileges and execute: C:\Users\UserName\Downloads\CVPowershellSDK>.\Install-CVModules.ps1 -Scope CurrentUser
+
+OFFLINE INSTALL
+To install the modules in 'Offline' mode for all users:
+- Launch a PowerShell session with Administrator privileges and execute: C:\Users\UserName\Downloads\CVPowershellSDK>.\Install-CVModules.ps1 -Scope AllUsers -Offline -PersistModulePath
+- The 'PersistModulePath' switch will update the system $env:PSModulePath environment variable to persist access to the Commvault modules across PowerShell sessions.
+
+To install the modules in 'Offline' mode for the current user only:
+- Launch a PowerShell session with current user privileges and execute: C:\Users\UserName\Downloads\CVPowershellSDK>.\Install-CVModules.ps1 -Scope CurrentUser -Offline -PersistModulePath
+- The 'PersistModulePath' switch will update the current user $env:PSModulePath environment variable to persist access to the Commvault modules across PowerShell sessions.
 
 Usage
 -----
 Login to Commcell:
 - PS > Connect-CVServer
-- For information on any Commvault Powershell command, run Get-Help [command] 
-- For detailed examples on any Commvault Powershell command, run Get-Help [command] -Examples
+- For information on any Commvault PowerShell command, run Get-Help [command] 
+- For detailed examples on any Commvault PowerShell command, run Get-Help [command] -Examples
 
 Sample Package Function Table
 -----------------------------
@@ -89,8 +102,10 @@ Sample Package Function Table
 
 Uninstallation
 --------------
-Launch a Powershell session with Administrator privileges and execute:
-- PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Uninstall-CVModules.ps1
+If the Commvault PowerShell modules were installed with the AllUsers scope:
+- Launch a PowerShell session with Administrator privileges and execute: PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Uninstall-CVModules.ps1
+If the Commvault PowerShell modules were installed with the CurrentUser scope:
+- Launch a PowerShell session with current user privileges and execute: PS C:\Users\UserName\Downloads\CVPowershellSDK> .\Uninstall-CVModules.ps1
 
 Contributions
 =============

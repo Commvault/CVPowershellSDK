@@ -19,7 +19,7 @@ function UninstallModules {
                 throw $_
             }
             else {
-                Write-Information -InformationAction Continue -MessageData "INFO: no Commvault modules found to uninstall"
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): Existing Commvault PowerShell module installation not found"
             }
         }
         catch {
@@ -54,7 +54,7 @@ function UninstallModules {
     
                     $curModule++
                     $complete = [math]::Round($curModule/$InstalledModules.Length * 100)
-                    Write-Progress -Activity "Uninstalling Commvault Modules" -Status "$complete% Complete:" -PercentComplete $complete;
+                    Write-Progress -Activity "Uninstalling Commvault modules" -Status "$complete% complete:" -PercentComplete $complete;
                 }
             }
         }
