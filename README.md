@@ -15,14 +15,16 @@ After downloading and extracting the package, if necessary unblock the downloade
 - PS C:\Users\UserName\Downloads> dir -Recurse .\CVPowershellSDK\ | Unblock-File
 - See: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/unblock-file?view=powershell-6
 
-ONLINE INSTALL
+Online Install
+--------------
 To install the modules for all users:
 - Launch a PowerShell session with Administrator privileges and execute: C:\Users\UserName\Downloads\CVPowershellSDK>.\Install-CVModules.ps1 -Scope AllUsers (this is default)
 
 To install the modules for the current user only:
 - Launch a PowerShell session with current user privileges and execute: C:\Users\UserName\Downloads\CVPowershellSDK>.\Install-CVModules.ps1 -Scope CurrentUser
 
-OFFLINE INSTALL
+Offline Install
+---------------
 To install the modules in 'Offline' mode for all users:
 - Launch a PowerShell session with Administrator privileges and execute: C:\Users\UserName\Downloads\CVPowershellSDK>.\Install-CVModules.ps1 -Scope AllUsers -Offline -PersistModulePath
 - The 'PersistModulePath' switch will update the system $env:PSModulePath environment variable to persist access to the Commvault modules across PowerShell sessions.
