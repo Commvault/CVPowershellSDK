@@ -188,75 +188,75 @@ function Get-CVAlert {
         
         
 function Get-CVClient {
-    <#
-    .SYNOPSIS
-        Method to retrieve the list of clients or detailed client properties from the CommServe.
-    
-    .DESCRIPTION
-        If the Name parameter is not provided, this method will output a list of clients from the CommServe.
-        If the Name parameter is provided, a default subset of client properties will be output for the specified client. 
-        
-    .PARAMETER Name
-        Get detail properties for client specified by Name.
-    
-    .PARAMETER Id
-        Get detail properties for client specified by Id.
-    
-    .PARAMETER AdditionalSettings
-        Retrieves additional setting properties for each client in the list.
-    
-    .PARAMETER AllProperties
-        Retrieves all properties for the specified client.
-    
-    .PARAMETER Version
-        Retrieves package version properties for the specified client.
-    
-    .PARAMETER TimeZone
-        Retrieves timezone properties for the specified client.
-    
-    .EXAMPLE
-        Get-CVClient 
-    
-    .EXAMPLE
-        Get-CVClient -Name ProdTest1
-    
-    .EXAMPLE
-        Get-CVClient -Name ProdTest1 -AllProperties
-    
-    .EXAMPLE
-        Get-CVClient -Id 2
-    
-    .EXAMPLE
-        Get-CVClient -Id 2 -AllProperties
-    
-    .EXAMPLE
-        Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client
-        
-    .EXAMPLE
-        Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client | Select-Object jobResulsDir
-        
-    .EXAMPLE
-        Get-CVClient -Name ProdTest1 -Version -TimeZone 
-        
-    .EXAMPLE
-        Get-CVClient -AdditionalSettings
-        
-    .EXAMPLE
-        Get-CVClient -Name SNOWSQL1 -AdditionalSettings
-        
-    .EXAMPLE
-        Get-CVClient -Name ProdTest1 | Get-CVSubclient
-        
-    .EXAMPLE
-        Get-CVClient | Get-CVSubclient
-        
-    .OUTPUTS
-        Outputs [PSCustomObject] containing list of CommServe clients or client properties.
-    
-    .NOTES
-        Author: Gary Stoops
-        Company: Commvault
-    #>
+<#
+.SYNOPSIS
+Method to retrieve the list of clients or detailed client properties from the CommServe.
+
+.DESCRIPTION
+If the Name parameter is not provided, this method will output a list of clients from the CommServe.
+If the Name parameter is provided, a default subset of client properties will be output for the specified client. 
+
+.PARAMETER Name
+Get detail properties for client specified by Name.
+
+.PARAMETER Id
+Get detail properties for client specified by Id.
+
+.PARAMETER AdditionalSettings
+Retrieves additional setting properties for each client in the list.
+
+.PARAMETER AllProperties
+Retrieves all properties for the specified client.
+
+.PARAMETER Version
+Retrieves package version properties for the specified client.
+
+.PARAMETER TimeZone
+Retrieves timezone properties for the specified client.
+
+.EXAMPLE
+Get-CVClient 
+
+.EXAMPLE
+Get-CVClient -Name ProdTest1
+
+.EXAMPLE
+Get-CVClient -Name ProdTest1 -AllProperties
+
+.EXAMPLE
+Get-CVClient -Id 2
+
+.EXAMPLE
+Get-CVClient -Id 2 -AllProperties
+
+.EXAMPLE
+Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client
+
+.EXAMPLE
+Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client | Select-Object jobResulsDir
+
+.EXAMPLE
+Get-CVClient -Name ProdTest1 -Version -TimeZone 
+
+.EXAMPLE
+Get-CVClient -AdditionalSettings
+
+.EXAMPLE
+Get-CVClient -Name SNOWSQL1 -AdditionalSettings
+
+.EXAMPLE
+Get-CVClient -Name ProdTest1 | Get-CVSubclient
+
+.EXAMPLE
+Get-CVClient | Get-CVSubclient
+
+.OUTPUTS
+Outputs [PSCustomObject] containing list of CommServe clients or client properties.
+
+.NOTES
+Author: Gary Stoops
+Company: Commvault
+#>
     [Alias('Get-CVClientProps')]
     [Alias('Get-CVClientAdditionalSettings')]
     [CmdletBinding(DefaultParameterSetName = 'AllProperties')]
