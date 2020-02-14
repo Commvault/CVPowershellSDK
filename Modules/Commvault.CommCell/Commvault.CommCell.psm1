@@ -188,223 +188,250 @@ function Get-CVAlert {
         
         
 function Get-CVClient {
-<#
-.SYNOPSIS
-    Method to retrieve the list of clients or detailed client properties from the CommServe.
-
-.DESCRIPTION
-    If the Name parameter is not provided, this method will output a list of clients from the CommServe.
-    If the Name parameter is provided, a default subset of client properties will be output for the specified client. 
+    <#
+    .SYNOPSIS
+        Method to retrieve the list of clients or detailed client properties from the CommServe.
     
-.PARAMETER Name
-    Get detail properties for client specified by Name.
-
-.PARAMETER Id
-    Get detail properties for client specified by Id.
-
-.PARAMETER AdditionalSettings
-    Retrieves additional setting properties for each client in the list.
-
-.PARAMETER AllProperties
-    Retrieves all properties for the specified client.
-
-.PARAMETER Version
-    Retrieves package version properties for the specified client.
-
-.PARAMETER TimeZone
-    Retrieves timezone properties for the specified client.
-
-.EXAMPLE
-    Get-CVClient 
-
-.EXAMPLE
-	Get-CVClient -Name ProdTest1
-
-.EXAMPLE
-    Get-CVClient -Name ProdTest1 -AllProperties
-
-.EXAMPLE
-	Get-CVClient -Id 2
-
-.EXAMPLE
-	Get-CVClient -Id 2 -AllProperties
-
-.EXAMPLE
-    Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client
+    .DESCRIPTION
+        If the Name parameter is not provided, this method will output a list of clients from the CommServe.
+        If the Name parameter is provided, a default subset of client properties will be output for the specified client. 
+        
+    .PARAMETER Name
+        Get detail properties for client specified by Name.
     
-.EXAMPLE
-    Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client | Select-Object jobResulsDir
+    .PARAMETER Id
+        Get detail properties for client specified by Id.
     
-.EXAMPLE
-    Get-CVClient -Name ProdTest1 -Version -TimeZone 
+    .PARAMETER AdditionalSettings
+        Retrieves additional setting properties for each client in the list.
     
-.EXAMPLE
-    Get-CVClient -AdditionalSettings
+    .PARAMETER AllProperties
+        Retrieves all properties for the specified client.
     
-.EXAMPLE
-    Get-CVClient -Name SNOWSQL1 -AdditionalSettings
+    .PARAMETER Version
+        Retrieves package version properties for the specified client.
     
-.EXAMPLE
-    Get-CVClient -Name ProdTest1 | Get-CVSubclient
+    .PARAMETER TimeZone
+        Retrieves timezone properties for the specified client.
     
-.EXAMPLE
-    Get-CVClient | Get-CVSubclient
+    .EXAMPLE
+        Get-CVClient 
     
-.OUTPUTS
-    Outputs [PSCustomObject] containing list of CommServe clients or client properties.
-
-.NOTES
-    Author: Gary Stoops
-    Company: Commvault
-#>
+    .EXAMPLE
+        Get-CVClient -Name ProdTest1
+    
+    .EXAMPLE
+        Get-CVClient -Name ProdTest1 -AllProperties
+    
+    .EXAMPLE
+        Get-CVClient -Id 2
+    
+    .EXAMPLE
+        Get-CVClient -Id 2 -AllProperties
+    
+    .EXAMPLE
+        Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client
+        
+    .EXAMPLE
+        Get-CVClient -Name ProdTest1 -AllProperties | Select-Object -ExpandProperty client | Select-Object jobResulsDir
+        
+    .EXAMPLE
+        Get-CVClient -Name ProdTest1 -Version -TimeZone 
+        
+    .EXAMPLE
+        Get-CVClient -AdditionalSettings
+        
+    .EXAMPLE
+        Get-CVClient -Name SNOWSQL1 -AdditionalSettings
+        
+    .EXAMPLE
+        Get-CVClient -Name ProdTest1 | Get-CVSubclient
+        
+    .EXAMPLE
+        Get-CVClient | Get-CVSubclient
+        
+    .OUTPUTS
+        Outputs [PSCustomObject] containing list of CommServe clients or client properties.
+    
+    .NOTES
+        Author: Gary Stoops
+        Company: Commvault
+    #>
     [Alias('Get-CVClientProps')]
     [Alias('Get-CVClientAdditionalSettings')]
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding(DefaultParameterSetName = 'AllProperties')]
     [OutputType([PSCustomObject])]
     param(
         [Alias('Client')]
-        [Parameter(Mandatory = $False, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory, ParameterSetName = 'ByName')]
         [ValidateNotNullorEmpty()]
         [String] $Name,
-
+    
         [Alias('ClientId')]
-        [Parameter(Mandatory = $False, ParameterSetName = 'ById')]
+        [Parameter(Mandatory, ParameterSetName = 'ById')]
         [ValidateNotNullorEmpty()]
         [Int32] $Id,
-
+    
+        [Parameter(ParameterSetName = 'ByName')]
+        [Parameter(ParameterSetName = 'ById')]
         [Switch] $AdditionalSettings,
+    
+        [Parameter(ParameterSetName = 'ByName')]
+        [Parameter(ParameterSetName = 'ById')]
         [Switch] $Version,
+    
+        [Parameter(ParameterSetName = 'ByName')]
+        [Parameter(ParameterSetName = 'ById')]
         [Switch] $TimeZone,
+            
+        [Parameter(Mandatory, ParameterSetName = 'AllProperties')]
+        [Parameter(ParameterSetName = 'ByName')]
+        [Parameter(ParameterSetName = 'ById')]
         [Switch] $AllProperties
     )
+        
+    begin {
+        Write-Debug -Message "$($MyInvocation.MyCommand): begin"
     
-    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
-
         try {
-            if ($PSCmdlet.ParameterSetName -eq 'ById' -and $AllProperties.IsPresent) {
-                $sessionObj = Get-CVSessionDetail 'GetClientProperties'
-            }
-            else {
-                $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
-            }
-
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+    
             $endpointSave = $sessionObj.requestProps.endpoint
-
+    
             if ($PSCmdlet.ParameterSetName -eq 'ByName' -or
                 $PSCmdlet.ParameterSetName -eq 'ById' ) {
                 $foundClient = $False
             }
-            else {
-                $foundClient = $null
-            }
         }
         catch {
             throw $_
         }
     }
+        
+    process {
+        Write-Debug -Message "$($MyInvocation.MyCommand): process"
     
-    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
-
         try {
             $sessionObj.requestProps.endpoint = $endpointSave
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $body = ''
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'clientProperties'
+        
+            $response = Submit-CVRESTRequest $payload $validate
+            $allClients = $response.Content.clientProperties
+        
+            $clientList = New-Object hashtable
+        
+            if ($response.IsValid) {
+                switch ($PSCmdlet.ParameterSetName) {
+                    'ByName' {
+                        if ($Name -in $allClients.client.clientEntity.clientName) {
+                            $foundClient = $True
+                            $clientProp = $allClients | Where-Object { $_.client.clientEntity.clientName -eq "$Name" }
+                        }
+                    }
+                    'ById' {
+                        if ($Id -in $allClients.client.clientEntity.ClientId) {
+                            $foundClient = $True
+                            $clientProp = $allClients | Where-Object { $_.client.clientEntity.ClientId -eq "$Id" }
+                        }
+                    }
+                    default {
+                        $allClients | ForEach-Object {
+                            $machine = $_.client.clientEntity.clientname
+                            $clientProp = $allClients | Where-Object { $_.client.clientEntity.clientName -eq $machine }
+                            $clientSubProp = [PSCustomObject]@{
+                                clientId       = $clientProp.client.clientEntity.clientId
+                                clientName     = $clientProp.client.clientEntity.clientName
+                                clienthostName = $clientProp.client.clientEntity.hostName
+                                type           = $clientProp.client.clientEntity._type_
+                                clientIdGUID   = $clientProp.client.clientEntity.clientGUID
+                                cvdPort        = $clientProp.client.cvdPort
+                            }
+                                       
+                            if ($AdditionalSettings.IsPresent) {
+                                $clientSubProp | Add-Member -MemberType NoteProperty -Name AdditionalSettings -Value $(GetClientAdditionalSettings -ClientId $clientProp.client.clientEntity.clientId)
+                            }
+                    
+                            $clientList.Add($clientProp.client.clientEntity.clientName, $clientSubProp)
+                        }
+                    }
+                }
 
-            if ($PSCmdlet.ParameterSetName -eq 'ById' -and $AllProperties.IsPresent) {
-                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id)
-                $headerObj = Get-CVRESTHeader $sessionObj
-                $body = ''
-                $payload = @{ }
-                $payload.Add('headerObject', $headerObj)
-                $payload.Add('body', $body)
-                $validate = 'clientProperties'
-    
-                $response = Submit-CVRESTRequest $payload $validate
-    
-                if ($response.IsValid) {
-                    Write-Output $response.Content.clientProperties
+                if ($foundClient) {
+                    $clientSubProp = [PSCustomObject]@{
+                        clientId       = $clientProp.client.clientEntity.clientId
+                        clientName     = $clientProp.client.clientEntity.clientName
+                        clienthostName = $clientProp.client.clientEntity.hostName
+                        type           = $clientProp.client.clientEntity._type_
+                        clientIdGUID   = $clientProp.client.clientEntity.clientGUID
+                        cvdPort        = $clientProp.client.cvdPort
+                    }
+                               
+                    if ($AdditionalSettings.IsPresent) {
+                        $clientSubProp | Add-Member -MemberType NoteProperty -Name AdditionalSettings -Value $(GetClientAdditionalSettings -ClientId $clientProp.client.clientEntity.clientId)
+                    }
+            
+                    $clientList.Add($clientProp.client.clientEntity.clientName, $clientSubProp)
                 }
             }
             else {
-                $headerObj = Get-CVRESTHeader $sessionObj
-                $body = ''
-                $payload = @{ }
-                $payload.Add('headerObject', $headerObj)
-                $payload.Add('body', $body)
-                $validate = 'clientProperties'
-    
-                $response = Submit-CVRESTRequest $payload $validate
-    
-                $clientList = @{ }
-    
-                if ($response.IsValid) {
-                    foreach ($clientProp in $response.Content.clientProperties) {
-                        if ($PSCmdlet.ParameterSetName -eq 'ByName') {
-                            if ($clientProp.client.clientEntity.clientName -eq $Name) {
-                                $foundClient = $True
-                            }
-                        }
-                        elseif ($PSCmdlet.ParameterSetName -eq 'ById') {
-                            if ($clientProp.client.clientEntity.clientId -eq $Id) {
-                                $foundClient = $True
-                            }
-                        }
-
-                        if ($null -eq $foundClient -or $foundClient -eq $True) {
-                            $clientSubProp = @{ }
-                            $clientSubProp.Add('clientId', $clientProp.client.clientEntity.clientId)
-                            $clientSubProp.Add('clientName', $clientProp.client.clientEntity.clientName)
-                            $clientSubProp.Add('clienthostName', $clientProp.client.clientEntity.hostName)
-                            $clientSubProp.Add('type', $clientProp.client.clientEntity._type_)
-                            $clientSubProp.Add('clientIdGUID', $clientProp.client.clientEntity.clientGUID)
-                            $clientSubProp.Add('cvdPort', $clientProp.client.cvdPort)
-                           
-                            if ($AdditionalSettings) {
-                                $clientSubProp.Add('AdditionalSettings', (GetClientAdditionalSettings -ClientId $clientProp.client.clientEntity.clientId))
-                            }
+                throw 'Response is not valid'
+            }
         
-                            $clientList.Add($clientProp.client.clientEntity.clientName, $clientSubProp)
-                        }
-    
-                        if ($foundClient -eq $True) {
-                            break
-                        }
-                    }
+            if ($clientList.Count -eq 0) {
+                if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
                 }
-    
-                if ($clientList.Count -eq 0) {
-                    if ($PSCmdlet.ParameterSetName -eq 'ByName') {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
-                    }
-                    elseif ($PSCmdlet.ParameterSetName -eq 'ById') {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having id [$Id]"
-                    }
-                    else {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no clients not found"
-                    }
+                elseif ($PSCmdlet.ParameterSetName -eq 'ById') {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having id [$Id]"
                 }
                 else {
-                    foreach ($key in $clientList.Keys) {
-                        $client = $clientList[$key]
-                        if ($AllProperties -or $Version -or $TimeZone) {
-                            $propertiesObj = GetClientProperties -ClientObject $client
-                            if ($propertiesObj.IsValid) {
-                                if ($AllProperties) {
-                                    Write-Output $propertiesObj.Content.clientProperties
-                                }
-                                else {
-                                    if ($Version) {
-                                        $client.Add('Version', $propertiesObj.Content.clientProperties[0].client.versionInfo)
-                                    }
-                                    if ($TimeZone) {
-                                        $client.Add('TimeZone', $propertiesObj.Content.clientProperties[0].client.TimeZone)
-                                    }
-                                    Write-Output $client
-                                }
-                            }
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no clients not found"
+                }
+            }
+            else {
+                $clientList.Keys | ForEach-Object -Process {
+                    $client = $clientList[$_]
+                    if ($AllProperties.IsPresent) {
+                        $propertiesObj = (GetClientProperties -clientid $client.clientid).content.clientProperties
+                        $ClientEntity = $allClients | Where-Object { $_.client.clientEntity.clientName -eq $client.clientName }
+                        [PSCustomObject]@{
+                            clientId                = $propertiesObj.client.clientEntity.clientId
+                            clientName              = $propertiesObj.client.clientEntity.clientName
+                            clienthostName          = $propertiesObj.client.clientEntity.hostName
+                            type                    = $ClientEntity.client.clientEntity._type_
+                            clientIdGUID            = $propertiesObj.client.clientEntity.clientGUID
+                            cvdPort                 = $ClientEntity.client.cvdPort
+                            clusterClientProperties = $propertiesObj.clusterClientProperties
+                            pseudoClientInfo        = $propertiesObj.pseudoClientInfo
+                            clientConfiguration     = $propertiesObj.clientConfiguration
+                            clientProps             = $propertiesObj.clientProps
+                            clientReadiness         = $propertiesObj.clientReadiness
+                            client                  = $propertiesObj.client
+                            clientGroups            = $propertiesObj.clientGroups
+                            AdvancedFeatures        = $propertiesObj.AdvancedFeatures
+                            ActivePhysicalNode      = $propertiesObj.ActivePhysicalNode
                         }
-                        else {
+                    }
+                    elseif ($Version.IsPresent -or $TimeZone.IsPresent) {
+                        $propertiesObj = GetClientProperties -clientid $client.clientid
+                        if ($propertiesObj.IsValid) {
+                            if ($Version.IsPresent) {
+                                $client | Add-Member -MemberType NoteProperty -Name Version -Value $propertiesObj.Content.clientProperties[0].client.versionInfo
+                            }
+                            if ($TimeZone.IsPresent) {
+                                $client | Add-Member -MemberType NoteProperty -Name TimeZone -Value $propertiesObj.Content.clientProperties[0].client.TimeZone
+                            }
                             Write-Output $client
                         }
                     }
+                    else {
+                        Write-Output $client
+                    }
                 }
             }
         }
@@ -412,11 +439,11 @@ function Get-CVClient {
             throw $_
         }
     }
-
-    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    
+    end {
+        Write-Debug -Message "$($MyInvocation.MyCommand): end"
     }
 }
-
 
 function Get-CVClientGroup {
 <#
@@ -1002,11 +1029,11 @@ function Set-CVClient {
 }
 
 
-function GetClientProperties ([System.Object] $ClientObject) {
+function GetClientProperties ([int32] $clientId) {
 
     try {
         $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
-        $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $ClientObject.clientId)
+        $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientId)
 
         $headerObj = Get-CVRESTHeader $sessionObj
         $body = ''
