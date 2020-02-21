@@ -1013,12 +1013,7 @@ function Get-CVClientLicense {
         [Alias('ClientId')]
         [Parameter(Mandatory = $False, ParameterSetName = 'ById')]
         [ValidateNotNullorEmpty()]
-        [Int32] $Id,
-
-        [Switch] $AdditionalSettings,
-        [Switch] $Version,
-        [Switch] $TimeZone,
-        [Switch] $AllProperties
+        [Int32] $Id
     )
     
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
