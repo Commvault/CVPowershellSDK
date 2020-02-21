@@ -607,6 +607,14 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             }
 
+            'Revoke-CVClientLicense' = @{
+        
+                Description = 'Release a license from a client'
+                Endpoint    = 'Client/License/Release'
+                Method      = 'Post'
+                Body        = ''
+            
+            }
             'Add-CVClientGroup' = @{
         
                 Description = 'Add new client group on CommServe'
