@@ -1001,6 +1001,77 @@ function Set-CVClient {
     }
 }
 
+function Get-CVClientLicense {
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('Client')]
+        [Parameter(Mandatory = $False, ParameterSetName = 'ByName')]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $False, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Switch] $AdditionalSettings,
+        [Switch] $Version,
+        [Switch] $TimeZone,
+        [Switch] $AllProperties
+    )
+    
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+
+            if ($PSCmdlet.ParameterSetName -eq 'ByName' -or
+                $PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $foundClient = $False
+            }
+            else {
+                $foundClient = $null
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+    
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+
+            if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                $Id = (Get-CVClient -Name $Name).clientId
+            }
+
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id)
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $body = ''
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'licensesInfo'
+    
+            $response = Submit-CVRESTRequest $payload $validate
+    
+            if ($response.IsValid) {
+                Write-Output $response.Content.licensesInfo
+            }
+
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
 
 function GetClientProperties ([System.Object] $ClientObject) {
 

@@ -570,7 +570,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'Client'
                 Method      = 'Get'
                 Body        = ''
-            
             }
     
             'GetClientProperties' = @{
@@ -600,6 +599,14 @@ function GetAPIDetail ([String] $Request) {
             
             }
         
+            'Get-CVClientLicense' = @{
+        
+                Description = 'Get client licenses from CommServe'
+                Endpoint    = 'Client/{clientId}/License'
+                Method      = 'Get'
+                Body        = ''
+            }
+
             'Add-CVClientGroup' = @{
         
                 Description = 'Add new client group on CommServe'
