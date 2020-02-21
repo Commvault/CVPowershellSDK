@@ -126,7 +126,7 @@ function Connect-CVServer {
             $response = (GetSessionToken $Server $User $Password $Port)
 
             if ($response.IsValid) {
-                Write-Host 'CommServe login successful'
+                Write-Verbose $response.Content
                 $global:CVConnectionPool = @{
                     server = $Server
                     token  = $response.Content.token
@@ -137,14 +137,13 @@ function Connect-CVServer {
                 $global:CVConnectionPool.GetEnumerator() | Where-Object -FilterScript {
                     $_.name -notmatch 'token' | Out-Null
                 }
-
-                ((Get-Variable -Scope Global CVConnectionPool).Value | Format-Table) | Out-Host
             }
             else {
-                Write-Host 'CommServe login failed'
-                Write-Host $response.Content
-                if (HasProperty $response.Content 'errList') {
-                    Write-Host $response.Content.errList[0]
+                if (HasProperty $response 'Content') {
+                    Write-Host $response.Content
+                    if (HasProperty $response.Content 'errList') {
+                        Write-Host $response.Content.errList[0]
+                    }
                 }
             }
         }
@@ -157,7 +156,67 @@ function Connect-CVServer {
     }
 }
     
+
+function Disconnect-CVServer {
+<#
+.SYNOPSIS
+    Method to release CommServe session authorization token.
+
+.DESCRIPTION
+    Method to release CommServe session authorization token.
+
+.EXAMPLE
+    Disconnect-CVServer
+
+.EXAMPLE
+    Disconnect-CVServer -Verbose
+
+.OUTPUTS
+    If -Verbose switch used, outputs <String> response returned from webservice logout request.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding()]
+    [OutputType([String])]
+    Param ()
     
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+        }
+        catch {
+            throw $_
+        }
+    }
+        
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $body = ''
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'User logged out'
+
+            $response = Submit-CVRESTRequest $payload $validate
+
+            if ($response.IsValid) {
+                Write-Verbose $response.Content
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
 function Get-CVSessionDetail {
     [Alias('Get-CVSessionDetails')]
     [CmdletBinding()]
@@ -343,7 +402,7 @@ function ValidateResponse ([HashTable] $Response, [PSCustomObject] $Output, [Str
                 }
             }
             catch {
-                if ($_.Exception.Message -eq 'Invalid JSON primitive: .') { # Xml response body
+                if ($_.Exception.Message.Contains('Invalid JSON primitive: ')) { # Xml or plain text response body
                     $Output | Add-Member -NotePropertyName 'Content' -NotePropertyValue $Response.Body.Content
                     if (-not $Output.IsValid -and -not[String]::IsNullOrEmpty($ValidateProperty)) {
                         $Output.IsValid = ($Output.Content.Contains($ValidateProperty))
@@ -845,22 +904,73 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             }
 
-            'Get-CVOperationWindow' = @{
+            'Get-CVBlackoutWindow' = @{
         
-                Description = 'Get operation window list'
-                Endpoint    = 'OperationWindow/OpWindowList'
+                Description = 'Get blackout window list'
+                Endpoint    = 'OperationWindow/OpWindowList?commcellId={commcellId}&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}&clientgroupId={clientgroupId}&companyId={companyId}&schedulePolicyId={schedulePolicyId}'
                 Method      = 'Get'
                 Body        = ''
             }
             
-            'GetOperationWindowDetail' = @{
+            'GetBlackoutWindowDetail' = @{
         
-                Description = 'Get operation window detail'
-                Endpoint    = 'OperationWindow/{OperationWindowId}'
+                Description = 'Get blackout window detail'
+                Endpoint    = 'OperationWindow/{ruleId}'
                 Method      = 'Get'
                 Body        = ''
             }
             
+            'Set-CVBlackoutWindow' = @{
+        
+                Description = 'This operation updates an operation rule'
+                Endpoint    = 'OperationWindow'
+                Method      = 'Put'
+                Body        = ''
+            }
+            
+            'Add-CVBlackoutWindow' = @{
+        
+                Description = 'This operation creates an operation rule'
+                Endpoint    = 'OperationWindow'
+                Method      = 'Post'
+                Body        = ''
+            }
+            
+            'Remove-CVBlackoutWindow' = @{
+        
+                Description = 'This operation deletes a blackout rule from the CommServe'
+                Endpoint    = 'OperationWindow/{ruleId}'
+                Method      = 'Delete'
+                Body        = ''
+            }
+
+            'Enable-CVIgnoreHigherLevelBlackoutWindowRules' = @{
+        
+                Description = 'Enable ignore higher-level blackout window rules feature'
+                Endpoint    = 'OperationWindow/Ignore/Action/Enable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
+                Method      = 'Put'
+                Body        = ''
+            }
+            
+            'Disable-CVIgnoreHigherLevelBlackoutWindowRules' = @{
+        
+                Description = 'Disable ignore higher-level blackout window rules feature'
+                Endpoint    = 'OperationWindow/Ignore/Action/Disable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
+                Method      = 'Put'
+                Body        = ''
+            }
+            
+            #--------------- Commvault.RESTSession ---------------
+
+            'Disconnect-CVServer' = @{
+        
+                Description = 'Releases session authorization token'
+                Endpoint    = 'Logout'
+                Method      = 'Post'
+                Body        = ''
+            
+            }
+        
             #--------------- Commvault.SQLServer ---------------
 
             'Get-CVSQLClientDetail' = @{
@@ -1167,6 +1277,40 @@ function GetAPIDetail ([String] $Request) {
                 Description = 'Returns the object for InplaceRestore'
                 Endpoint    = 'VM?guid={vmGUID}'
                 Method      = 'Get'
+                Body        = ''
+            }
+
+            #--------------- Commvault.Workflow ---------------
+
+            'Get-CVWorkflow' = @{
+        
+                Description = 'Get workflow list'
+                Endpoint    = 'Workflow'
+                Method      = 'Get'
+                Body        = ''
+            }
+            
+            'GetWorkflowDetail' = @{
+        
+                Description = 'Get workflow detail'
+                Endpoint    = 'Workflow/{workflowId}'
+                Method      = 'Get'
+                Body        = ''
+            }
+ 
+            'Start-CVWorkflow' = @{
+        
+                Description = 'This operation executes a workflow'
+                Endpoint    = 'Workflow/{workflowName}'
+                Method      = 'Get'
+                Body        = ''
+            }
+            
+            'Remove-CVWorkflow' = @{
+        
+                Description = 'This operation deletes a workflow from the CommServe'
+                Endpoint    = 'Workflow/{workflowId}'
+                Method      = 'Delete'
                 Body        = ''
             }
         }
