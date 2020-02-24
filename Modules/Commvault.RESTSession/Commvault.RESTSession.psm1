@@ -1301,7 +1301,7 @@ function GetAPIDetail ([String] $Request) {
             'Start-CVWorkflow' = @{
         
                 Description = 'This operation executes a workflow'
-                Endpoint    = 'Workflow/{workflowName}'
+                Endpoint    = 'Wapi/{workflowName}'
                 Method      = 'Get'
                 Body        = ''
             }

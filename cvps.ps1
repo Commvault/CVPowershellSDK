@@ -51,7 +51,9 @@ Import-Module 'Commvault.RESTSession'
 Import-Module 'Commvault.SQLServer'
 Import-Module 'Commvault.StorageResources'
 Import-Module 'Commvault.VirtualServer'
+Import-Module 'Commvault.Workflow'
 
 Get-ChildItem function: | Where-Object { $_.ModuleName -like 'Commvault.CommCell' -or $_.ModuleName -like 'Commvault.FileSystem' -or $_.ModuleName -like 'Commvault.JobManager' -or
 							   $_.ModuleName -like 'Commvault.Policies' -or $_.ModuleName -like 'Commvault.RESTSession' -or $_.ModuleName -like 'Commvault.SQLServer' -or 
-							   $_.ModuleName -like 'Commvault.StorageResources' -or $_.ModuleName -like 'Commvault.VirtualServer' } | Sort-Object -Property Modulename
+							   $_.ModuleName -like 'Commvault.StorageResources' -or $_.ModuleName -like 'Commvault.VirtualServer' -or $_.ModuleName -like 'Commvault.Workflow' } | Sort-Object -Property Modulename
+Write-Host ''
