@@ -605,6 +605,7 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'Client/{clientId}/License'
                 Method      = 'Get'
                 Body        = ''
+
             }
 
             'Revoke-CVClientLicense' = @{
@@ -615,6 +616,7 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             
             }
+
             'Add-CVClientGroup' = @{
         
                 Description = 'Add new client group on CommServe'

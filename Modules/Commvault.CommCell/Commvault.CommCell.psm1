@@ -1025,16 +1025,16 @@ function Get-CVClientLicense {
     Author: Craig Tolley
     Based on API Documentation at https://documentation.commvault.com/commvault/v11/article?p=47685.htm
 #>
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding(DefaultParameterSetName = 'ByName')]
     [OutputType([PSCustomObject])]
     param(
         [Alias('Client')]
-        [Parameter(Mandatory = $False, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
         [Alias('ClientId')]
-        [Parameter(Mandatory = $False, ParameterSetName = 'ById')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [Int32] $Id
     )
@@ -1044,14 +1044,6 @@ function Get-CVClientLicense {
         try {
             $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
             $endpointSave = $sessionObj.requestProps.endpoint
-
-            if ($PSCmdlet.ParameterSetName -eq 'ByName' -or
-                $PSCmdlet.ParameterSetName -eq 'ById' ) {
-                $foundClient = $False
-            }
-            else {
-                $foundClient = $null
-            }
         }
         catch {
             throw $_
@@ -1064,11 +1056,19 @@ function Get-CVClientLicense {
             $sessionObj.requestProps.endpoint = $endpointSave
 
             if ($PSCmdlet.ParameterSetName -eq 'ByName') {
-                $Id = (Get-CVClient -Name $Name).clientId
+                $clientObj = (Get-CVClient -Name $Name)
+                if ($null -ne $clientObj) {
+                    $Id = $clientObj.clientId
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
             }
 
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id)
             $headerObj = Get-CVRESTHeader $sessionObj
+
             $body = ''
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
@@ -1079,6 +1079,10 @@ function Get-CVClientLicense {
     
             if ($response.IsValid) {
                 Write-Output $response.Content.licensesInfo
+            }
+            
+            else {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): license information not found for client Id [$Id]"
             }
 
         }
@@ -1115,6 +1119,9 @@ function Revoke-CVClientLicense {
     $licenses = Get-CVClientLicences -Name 'carbonwincs1'
     Revoke-CvClientLicenses -Name 'carbonwincs1' -LicensesToRelease $licenses
 
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
 .OUTPUTS
     Outputs errorMessage and errorCode. Error code 0 is success.
 
@@ -1122,20 +1129,23 @@ function Revoke-CVClientLicense {
     Author: Craig Tolley
     Based on API Documentation at https://documentation.commvault.com/commvault/v11/article?p=92013.htm
 #>
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
     Param (
-        [Alias('ClientName')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [Alias('Client')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
         [Alias('ClientId')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [Int32] $Id,
 
         [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
         [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
-        $LicensesToRelease
+        [System.Object] $LicensesToRelease,
+
+        [switch]$Force
     )
 
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
@@ -1181,6 +1191,7 @@ function Revoke-CVClientLicense {
                 }
             }
             #>
+
             $body = @{}
 
             $client = @{}
@@ -1208,7 +1219,7 @@ function Revoke-CVClientLicense {
             $payload.Add('headerObject', $headerObj)
             $payload.Add('body', $body)
             $validate = 'errorCode'
-
+            $body
             if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
                 if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
                     $response = Submit-CVRESTRequest $payload $validate
