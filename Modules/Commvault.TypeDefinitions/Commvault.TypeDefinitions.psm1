@@ -8,6 +8,25 @@
 
 Set-StrictMode -Version latest
 
+enum CVMatchingPattern {
+    Contains = 0
+    Equals
+    StartsWith
+    EndsWith
+}
+
+enum CVOperationWindowRuleLevel {
+    CommServ = 0
+    ClientGroup
+    Client
+    iDataAgent
+    Instance
+    Backupset
+    Subclient
+    SchedulePolicy
+    Schedule
+}
+
 enum CVSchedulePolicyType {
     All = -1
     DataProtection = 0
@@ -178,3 +197,18 @@ enum CVVSAContentEntityType {
     InstanceSize            = 40
     Organization            = 41
 }
+
+enum CVVSAContentEntityTypeAbbr {
+    Host                    = 1
+    Datastore               = 7
+    #VMName                  = 9  # GUID
+    VMNamePattern           = 10 # Contains/Ends with/Equals/Starts with
+    GuestOS                 = 11
+    GuestDNSHostname        = 12
+    #PoweredState            = 28 # On/Off/Other
+    Notes                   = 29
+    #Template                = 33 # True/False
+    Tag                     = 34
+    TagCategory             = 35
+}
+ 

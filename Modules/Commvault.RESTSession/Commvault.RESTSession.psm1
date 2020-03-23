@@ -1191,13 +1191,21 @@ function GetAPIDetail ([String] $Request) {
     
             #--------------- Commvault.VirtualServer ---------------
 
+            'Add-CVVirtualMachineGroupContent' = @{
+        
+                Description = 'Discover virtual server subclient content in CommCell'
+                Endpoint    = 'Subclient/Content/Preview'
+                Method      = 'Post'
+                Body        = ''
+                ContentType = 'application/xml'
+            }
+    
             'Add-CVVirtualMachine' = @{
         
                 Description = 'Add content to specified virtual server subclient in CommCell'
                 Endpoint    = 'Subclient/{subclientId}'
                 Method      = 'Post'
                 Body        = ''
-            
             }
     
             'Backup-CVVirtualMachine' = @{
@@ -1206,7 +1214,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = '/v2/vsa/vm/{vmGUID}/backup'
                 Method      = 'Post'
                 Body        = ''
-            
             }
     
             'Get-CVVirtualMachine' = @{
@@ -1215,7 +1222,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'VM?forUser=true&status={status}'
                 Method      = 'Get'
                 Body        = ''
-            
             }
     
             'Get-CVVirtualMachineByClient' = @{
@@ -1224,7 +1230,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'VM?propertyLevel=AllProperties&status={status}&PseudoClientId={id}'
                 Method      = 'Get'
                 Body        = ''
-            
             }
     
             'Restore-CVVirtualMachine' = @{
@@ -1233,7 +1238,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'v2/vsa/vm/{vmGUID}/recover'
                 Method      = 'Post'
                 Body        = ''
-            
             }
     
             'Restore-CVVirtualMachineOutofPlace' = @{
@@ -1242,7 +1246,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'v2/vsa/vm/{vmGUID}/recover'
                 Method      = 'Post'
                 Body        = ''
-            
             }
     
             'Get-CVVirtualMachineLiveMount' = @{
@@ -1251,7 +1254,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'v2/vsa/vm/{vmGUID}/activemounts'
                 Method      = 'Get'
                 Body        = ''
-            
             }
 
             'Mount-CVVirtualMachine' = @{
@@ -1260,7 +1262,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'v2/vsa/vm/{vmGUID}/livemount'
                 Method      = 'Post'
                 Body        = ''
-            
             }
 
             'Dismount-CVVirtualMachine' = @{
@@ -1269,7 +1270,6 @@ function GetAPIDetail ([String] $Request) {
                 Endpoint    = 'v2/vsa/vm/{vmGUID}/liveunmount'
                 Method      = 'Post'
                 Body        = ''
-            
             }
 
             'InplaceRecover-VMDetails' = @{

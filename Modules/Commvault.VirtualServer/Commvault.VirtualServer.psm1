@@ -1889,6 +1889,146 @@ function Remove-CVVirtualMachine {
 }
 
 
+function Add-CVVirtualMachineGroupContent {
+<#
+.SYNOPSIS
+    Method to perform a virtual machine group content preview with option to create clients.
+
+.DESCRIPTION
+    Method to perform a virtual machine group content preview with option to create clients.
+    
+.PARAMETER SubclientObject
+    Virtual machine group for content preview. Can be piped or passed as a parameter.
+
+.PARAMETER EntityType
+    Virtual server EntityType such as Host, Datastore, VMNamePattern, GuestOS, GuestDNSHostname
+
+.PARAMETER MatchingPattern
+    Matching pattern to be used for search DisplayName can be: Contains, Equals, StartsWith, or EndsWith.
+
+.PARAMETER DisplayName
+    Search Term.
+
+.PARAMETER CreateClientsForDiscoveredVms
+    Switch to create clients for discovered virtual machines. 
+    Recommend running first without this switch to preview discovery results.
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Get-CVSubclient -Name GRS-VMGroup1 -ClientName vsaqa.gp.cv.commvault.com | Add-CVVirtualMachineGroupContent -EntityType Host -MatchingPattern Equals -DisplayName 172.24.17.18
+
+.EXAMPLE
+    Get-CVSubclient -Name GRS-VMGroup1 -ClientName vsaqa.gp.cv.commvault.com | Add-CVVirtualMachineGroupContent -EntityType VMNamePattern -MatchingPattern Contains -DisplayName Gary
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing virtual machine discovery result.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByObject', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [System.Object] $SubclientObject,
+
+        [Parameter(Mandatory = $True )]
+        [ValidateNotNullorEmpty()]
+        [CVVSAContentEntityTypeAbbr] $EntityType,
+
+        [Parameter(Mandatory = $True )]
+        [ValidateNotNullorEmpty()]
+        [CVMatchingPattern] $MatchingPattern,
+        
+        [Parameter(Mandatory = $True )]
+        [ValidateNotNullorEmpty()]
+        [String] $DisplayName,
+        
+        [Switch] $CreateClientsForDiscoveredVms,
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+
+            $body = '<?xml version="1.0" encoding="UTF-8"?>'
+            $body += '<EVGui_PreviewInventoryReq createClientsForDiscoveredVms="{createClientsForDiscoveredVms}" previewInventoryRespType="2">'
+            $body += '<appId clientId="{clientId}" apptypeId="106" instanceId="{instanceId}" backupsetId="{backupsetId}" subclientId="{subclientId}"/>'
+            $body += '<contentEntity>'
+            $body += '<children allOrAnyChildren="1" name="" type="{type}" path="" displayName="{displayName}" equalsOrNotEquals="1"/>'
+            $body += '</contentEntity>'
+            $body += '<filterEntity/>'
+            $body += '</EVGui_PreviewInventoryReq>'
+
+            if ($CreateClientsForDiscoveredVms.IsPresent) {
+                $body = $body -creplace ('{createClientsForDiscoveredVms}', 1)
+            }
+            else {
+                $body = $body -creplace ('{createClientsForDiscoveredVms}', 0)
+            }
+
+            $body = $body -creplace ('{clientId}', $SubclientObject.clientId)
+            $body = $body -creplace ('{instanceId}', $SubclientObject.instanceId)
+            $body = $body -creplace ('{backupsetId}', $SubclientObject.backupsetId)
+            $body = $body -creplace ('{subclientId}', $SubclientObject.subclientId)
+
+            $body = $body -creplace ('{type}', $EntityType.value__)
+
+            if ($MatchingPattern -eq [CVMatchingPattern]::Equals) {
+                $body = $body -creplace ('{displayName}', $DisplayName)
+            }
+            elseif ($MatchingPattern -eq [CVMatchingPattern]::Contains) {
+                $body = $body -creplace ('{displayName}', "*$DisplayName*")
+            }
+            elseif ($MatchingPattern -eq [CVMatchingPattern]::StartsWith) {
+                $body = $body -creplace ('{displayName}', "$DisplayName*")
+            }
+            elseif ($MatchingPattern -eq [CVMatchingPattern]::EndsWith) {
+                $body = $body -creplace ('{displayName}', "*$DisplayName")
+            }
+            
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'jobid'
+            
+            if ($Force -or $PSCmdlet.ShouldProcess($SubclientObject.subclientName)) {
+                $response = Submit-CVRESTRequest $payload $validate
+            }
+            else {
+                $response = Submit-CVRESTRequest $payload $validate -DryRun
+            }
+
+            Write-Output $response.Content
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+    
 # Function to prepare VM content. this returns an object that can be used for Add or Remove content REST API
 function PrepareContentBodyJson ([HashTable] $EntityObj) {
 
