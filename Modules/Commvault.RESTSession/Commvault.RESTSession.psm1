@@ -359,13 +359,15 @@ function Submit-CVRESTRequest {
             }    
 
             if ($DryRun) {
-                Write-Host "$($MyInvocation.MyCommand): body: $($Payload.body)"      
+                if ($Payload.body.Length -gt 0) { Write-Host "$($MyInvocation.MyCommand): body:`n $($Payload.body)" }
+                else { Write-Host "$($MyInvocation.MyCommand): body: $($Payload.body)" }
                 Write-Host "$($MyInvocation.MyCommand): baseUrl: $($Payload.headerObject.baseUrl)"      
                 Write-Host "$($MyInvocation.MyCommand): endpoint: $($Payload.headerObject.endpoint)"      
                 Write-Host "$($MyInvocation.MyCommand): method: $($Payload.headerObject.method)"      
             }
             else {
-                Write-Debug -Message "$($MyInvocation.MyCommand): body: $($Payload.body)"      
+                if ($Payload.body.Length -gt 0) { Write-Debug -Message "$($MyInvocation.MyCommand): body:`n $($Payload.body)" }
+                else { Write-Debug -Message "$($MyInvocation.MyCommand): body: $($Payload.body)" }
                 Write-Debug -Message "$($MyInvocation.MyCommand): baseUrl: $($Payload.headerObject.baseUrl)"      
                 Write-Debug -Message "$($MyInvocation.MyCommand): endpoint: $($Payload.headerObject.endpoint)"      
                 Write-Debug -Message "$($MyInvocation.MyCommand): method: $($Payload.headerObject.method)" 
@@ -1196,7 +1198,16 @@ function GetAPIDetail ([String] $Request) {
                 Description = 'Discover virtual server subclient content in CommCell'
                 Endpoint    = 'Subclient/Content/Preview'
                 Method      = 'Post'
-                Body        = ''
+                Body        = @'
+                <?xml version="1.0" encoding="UTF-8"?>
+                <EVGui_PreviewInventoryReq createClientsForDiscoveredVms="{createClientsForDiscoveredVms}" previewInventoryRespType="2">
+                <appId clientId="{clientId}" apptypeId="106" instanceId="{instanceId}" backupsetId="{backupsetId}" subclientId="{subclientId}"/>
+                <contentEntity>
+                <children allOrAnyChildren="1" name="{name}" type="{type}" path="" displayName="{displayName}" equalsOrNotEquals="1"/>
+                </contentEntity>
+                <filterEntity/>
+                </EVGui_PreviewInventoryReq>
+'@
                 ContentType = 'application/xml'
             }
     

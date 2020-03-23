@@ -1892,22 +1892,31 @@ function Remove-CVVirtualMachine {
 function Add-CVVirtualMachineGroupContent {
 <#
 .SYNOPSIS
-    Method to perform a virtual machine group content preview with option to create clients.
+    Method to perform a virtual machine group content preview with option to create clients from result set.
 
 .DESCRIPTION
-    Method to perform a virtual machine group content preview with option to create clients.
+    Method to perform a virtual machine group content preview with option to create clients from result set.
     
 .PARAMETER SubclientObject
     Virtual machine group for content preview. Can be piped or passed as a parameter.
 
 .PARAMETER EntityType
-    Virtual server EntityType such as Host, Datastore, VMNamePattern, GuestOS, GuestDNSHostname
+    Virtual server EntityType including: Host, Datastore, VMName, VMNamePattern, GuestOS, GuestDNSHostname, PoweredState, Notes, TemplateState, Tag, and TagCategory.
+
+.PARAMETER PoweredState
+    Paired with EntityType PoweredState: On, Off, Other.
+
+.PARAMETER TemplateState
+    Paired with EntityType TemplateState: $True or $False.
 
 .PARAMETER MatchingPattern
-    Matching pattern to be used for search DisplayName can be: Contains, Equals, StartsWith, or EndsWith.
+    Matching pattern to be used for search on DisplayName can be: Contains, Equals, StartsWith, or EndsWith.
 
 .PARAMETER DisplayName
     Search Term.
+
+.PARAMETER VMName
+    Paired with EntityType VMName, this is the VM GUID.
 
 .PARAMETER CreateClientsForDiscoveredVms
     Switch to create clients for discovered virtual machines. 
@@ -1917,10 +1926,16 @@ function Add-CVVirtualMachineGroupContent {
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
 .EXAMPLE
-    Get-CVSubclient -Name GRS-VMGroup1 -ClientName vsaqa.gp.cv.commvault.com | Add-CVVirtualMachineGroupContent -EntityType Host -MatchingPattern Equals -DisplayName 172.24.17.18
+    Get-CVSubclient -Name GRS-VMGroup1 -ClientName accounting.mycompany.com | Add-CVVirtualMachineGroupContent -EntityType Datastore -MatchingPattern EndsWith -DisplayName DS1
 
 .EXAMPLE
-    Get-CVSubclient -Name GRS-VMGroup1 -ClientName vsaqa.gp.cv.commvault.com | Add-CVVirtualMachineGroupContent -EntityType VMNamePattern -MatchingPattern Contains -DisplayName Gary
+    Get-CVSubclient -Name GRS-VMGroup1 -ClientName finance.mycompany.com | Add-CVVirtualMachineGroupContent -EntityType Host -MatchingPattern Equals -DisplayName 123.44.66.77
+
+.EXAMPLE
+    Get-CVSubclient -Name GRS-VMGroup1 -ClientName sales.mycompany.com | Add-CVVirtualMachineGroupContent -EntityType VMNamePattern -MatchingPattern Contains -DisplayName GaryTest -CreateClientsForDiscoveredVms
+
+.EXAMPLE
+    Get-CVSubclient -Name GRS-VMGroup1 -ClientName repos.mycompany.com | Add-CVVirtualMachineGroupContent -EntityType VMName -VMName 500bc16c-fb3f-17d6-5712-c00b4524d3d2
 
 .OUTPUTS
     Outputs [PSCustomObject] containing virtual machine discovery result.
@@ -1938,15 +1953,27 @@ function Add-CVVirtualMachineGroupContent {
 
         [Parameter(Mandatory = $True )]
         [ValidateNotNullorEmpty()]
-        [CVVSAContentEntityTypeAbbr] $EntityType,
+        [CVVMGroupContentEntityType] $EntityType,
 
-        [Parameter(Mandatory = $True )]
+        [Parameter(Mandatory = $False )]
         [ValidateNotNullorEmpty()]
-        [CVMatchingPattern] $MatchingPattern,
+        [CVVSAPowerState] $PoweredState = [CVVSAPowerState]::On,
+
+        [Parameter(Mandatory = $False )]
+        [ValidateNotNullorEmpty()]
+        [Boolean] $TemplateState = $True,
+
+        [Parameter(Mandatory = $False )]
+        [ValidateNotNullorEmpty()]
+        [CVMatchingPattern] $MatchingPattern = [CVMatchingPattern]::Equals,
         
-        [Parameter(Mandatory = $True )]
+        [Parameter(Mandatory = $False )]
         [ValidateNotNullorEmpty()]
         [String] $DisplayName,
+        
+        [Parameter(Mandatory = $False, HelpMessage = 'This is the VM GUID')]
+        [ValidateNotNullorEmpty()]
+        [String] $VMName,
         
         [Switch] $CreateClientsForDiscoveredVms,
         [Switch] $Force
@@ -1957,6 +1984,7 @@ function Add-CVVirtualMachineGroupContent {
         try {
             $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
             $endpointSave = $sessionObj.requestProps.endpoint
+            $bodySave = $sessionObj.requestProps.body
         }
         catch {
             throw $_
@@ -1967,47 +1995,56 @@ function Add-CVVirtualMachineGroupContent {
 
         try {
             $sessionObj.requestProps.endpoint = $endpointSave
-
-            $body = '<?xml version="1.0" encoding="UTF-8"?>'
-            $body += '<EVGui_PreviewInventoryReq createClientsForDiscoveredVms="{createClientsForDiscoveredVms}" previewInventoryRespType="2">'
-            $body += '<appId clientId="{clientId}" apptypeId="106" instanceId="{instanceId}" backupsetId="{backupsetId}" subclientId="{subclientId}"/>'
-            $body += '<contentEntity>'
-            $body += '<children allOrAnyChildren="1" name="" type="{type}" path="" displayName="{displayName}" equalsOrNotEquals="1"/>'
-            $body += '</contentEntity>'
-            $body += '<filterEntity/>'
-            $body += '</EVGui_PreviewInventoryReq>'
+            $sessionObj.requestProps.body = $bodySave
 
             if ($CreateClientsForDiscoveredVms.IsPresent) {
-                $body = $body -creplace ('{createClientsForDiscoveredVms}', 1)
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{createClientsForDiscoveredVms}', 1)
             }
             else {
-                $body = $body -creplace ('{createClientsForDiscoveredVms}', 0)
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{createClientsForDiscoveredVms}', 0)
             }
 
-            $body = $body -creplace ('{clientId}', $SubclientObject.clientId)
-            $body = $body -creplace ('{instanceId}', $SubclientObject.instanceId)
-            $body = $body -creplace ('{backupsetId}', $SubclientObject.backupsetId)
-            $body = $body -creplace ('{subclientId}', $SubclientObject.subclientId)
+            $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{clientId}', $SubclientObject.clientId)
+            $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{instanceId}', $SubclientObject.instanceId)
+            $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{backupsetId}', $SubclientObject.backupsetId)
+            $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{subclientId}', $SubclientObject.subclientId)
 
-            $body = $body -creplace ('{type}', $EntityType.value__)
+            $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{type}', $EntityType.value__)
 
-            if ($MatchingPattern -eq [CVMatchingPattern]::Equals) {
-                $body = $body -creplace ('{displayName}', $DisplayName)
+            if ($EntityType -eq [CVVMGroupContentEntityType]::PoweredState) {
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{name}', $EntityType)
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', $PoweredState)
             }
-            elseif ($MatchingPattern -eq [CVMatchingPattern]::Contains) {
-                $body = $body -creplace ('{displayName}', "*$DisplayName*")
+            elseif ($EntityType -eq [CVVMGroupContentEntityType]::TemplateState) {
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{name}', $EntityType)
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', $TemplateState)
             }
-            elseif ($MatchingPattern -eq [CVMatchingPattern]::StartsWith) {
-                $body = $body -creplace ('{displayName}', "$DisplayName*")
+            elseif ($EntityType -eq [CVVMGroupContentEntityType]::VMName) {
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{name}', $VMName)
+                $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', $DisplayName)
             }
-            elseif ($MatchingPattern -eq [CVMatchingPattern]::EndsWith) {
-                $body = $body -creplace ('{displayName}', "*$DisplayName")
+            else {
+                if ($MatchingPattern -eq [CVMatchingPattern]::Equals) {
+                    $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', $DisplayName)
+                }
+                elseif ($MatchingPattern -eq [CVMatchingPattern]::Contains) {
+                    $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', "*$DisplayName*")
+                }
+                elseif ($MatchingPattern -eq [CVMatchingPattern]::StartsWith) {
+                    $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', "$DisplayName*")
+                }
+                elseif ($MatchingPattern -eq [CVMatchingPattern]::EndsWith) {
+                    $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', "*$DisplayName")
+                }
             }
-            
+
+            $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{name}', $null)
+            $sessionObj.requestProps.body = $sessionObj.requestProps.body -creplace ('{displayName}', $null)
+
             $headerObj = Get-CVRESTHeader $sessionObj
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
+            $payload.Add('body', $sessionObj.requestProps.body)
             $validate = 'jobid'
             
             if ($Force -or $PSCmdlet.ShouldProcess($SubclientObject.subclientName)) {

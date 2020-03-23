@@ -198,17 +198,24 @@ enum CVVSAContentEntityType {
     Organization            = 41
 }
 
-enum CVVSAContentEntityTypeAbbr {
+enum CVVMGroupContentEntityType {
     Host                    = 1
     Datastore               = 7
-    #VMName                  = 9  # GUID
-    VMNamePattern           = 10 # Contains/Ends with/Equals/Starts with
+    VMName                  = 9
+    VMNamePattern           = 10
     GuestOS                 = 11
     GuestDNSHostname        = 12
-    #PoweredState            = 28 # On/Off/Other
+    PoweredState            = 28
     Notes                   = 29
-    #Template                = 33 # True/False
+    TemplateState           = 33
     Tag                     = 34
     TagCategory             = 35
 }
+
+enum CVVSAPowerState {
+    Off                     = 0
+    On                      = 1
+    Other                   = 2
+}
+
  
