@@ -42,6 +42,8 @@ Login to Commcell:
 
 Sample Package Function Table
 -----------------------------
+- Function: Disable-CVClientActivity                           in Module: Commvault.CommCell
+- Function: Enable-CVClientActivity                            in Module: Commvault.CommCell
 - Function: Get-CVClient                                       in Module: Commvault.CommCell
 - Function: Get-CVClientGroup                                  in Module: Commvault.CommCell
 - Function: Get-CVClientLicense                                in Module: Commvault.CommCell
