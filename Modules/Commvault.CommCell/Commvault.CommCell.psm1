@@ -574,16 +574,16 @@ function Add-CVClientToClientGroup {
     [OutputType([PSCustomObject])]
     param(
         [Alias('ClientName')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
         [Alias('ClientId')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [Int32] $Id,
 
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullorEmpty()]
         [String[]] $ClientGroupName,
 
@@ -722,16 +722,16 @@ function Remove-CVClientFromClientGroup {
     [OutputType([PSCustomObject])]
     param(
         [Alias('ClientName')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
         [Alias('ClientId')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [Int32] $Id,
 
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullorEmpty()]
         [String[]] $ClientGroupName,
 
