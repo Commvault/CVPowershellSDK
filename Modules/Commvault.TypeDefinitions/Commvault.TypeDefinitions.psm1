@@ -178,3 +178,18 @@ enum CVVSAContentEntityType {
     InstanceSize            = 40
     Organization            = 41
 }
+
+# Based on activityType property defined at https://documentation.commvault.com/commvault/v11/article?p=50650.htm
+enum CVActivityType {
+    Backup = 1
+    Restore = 2
+    AuxiliaryCopy = 4
+    DisasterRecoveryBackup = 8
+    ArchivePruning = 16
+    MediaRecylce = 32
+    SyntheticFull = 64
+    AllActivity = 128
+    Schedule = 256
+    OnlineContentIndexing = 512
+    OfflineContentIndexing = 1024
+}
