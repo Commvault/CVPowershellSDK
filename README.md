@@ -51,7 +51,7 @@ Sample Package Function Table
 - Function: Get-CVVersionInfo                                  in Module: Commvault.CommCell
 - Function: Get-CVAlert                                        in Module: Commvault.CommCell
 - Function: Get-CVSubclient                                    in Module: Commvault.CommCell
-- Function: Remove-CVClientToClientGroup                       in Module: Commvault.CommCell
+- Function: Remove-CVClientFromClientGroup                     in Module: Commvault.CommCell
 - Function: Revoke-CVClientLicense                             in Module: Commvault.CommCell
 - Function: Set-CVClient                                       in Module: Commvault.CommCell
 - Function: Set-CVClientGroup                                  in Module: Commvault.CommCell
