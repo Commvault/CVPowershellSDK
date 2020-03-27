@@ -640,7 +640,7 @@ function Add-CVClientToClientGroup {
             $body = @{}
             $body.Add("clientProperties",$clientProperties)
             $body = ($body | ConvertTo-Json -Depth 10)
-            $body
+            
             $headerObj = Get-CVRESTHeader $sessionObj
             $payload = @{ }
             $payload.Add('headerObject', $headerObj)
