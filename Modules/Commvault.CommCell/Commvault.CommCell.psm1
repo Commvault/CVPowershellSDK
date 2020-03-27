@@ -1066,12 +1066,12 @@ function Enable-CVClientActivity {
     [OutputType([PSCustomObject])]
     param(
         [Alias('ClientName')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
         [Alias('ClientId')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [Int32] $Id,
 
@@ -1256,12 +1256,12 @@ function Disable-CVClientActivity {
     [OutputType([PSCustomObject])]
     param(
         [Alias('ClientName')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [String] $Name,
 
         [Alias('ClientId')]
-        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [Int32] $Id,
 
