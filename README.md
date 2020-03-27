@@ -43,12 +43,16 @@ Login to Commcell:
 Sample Package Function Table
 -----------------------------
 - Function: Add-CVClientToClientGroup                          in Module: Commvault.CommCell
+- Function: Disable-CVClientActivity                           in Module: Commvault.CommCell
+- Function: Enable-CVClientActivity                            in Module: Commvault.CommCell
 - Function: Get-CVClient                                       in Module: Commvault.CommCell
 - Function: Get-CVClientGroup                                  in Module: Commvault.CommCell
+- Function: Get-CVClientLicense                                in Module: Commvault.CommCell
 - Function: Get-CVVersionInfo                                  in Module: Commvault.CommCell
 - Function: Get-CVAlert                                        in Module: Commvault.CommCell
 - Function: Get-CVSubclient                                    in Module: Commvault.CommCell
 - Function: Remove-CVClientToClientGroup                       in Module: Commvault.CommCell
+- Function: Revoke-CVClientLicense                             in Module: Commvault.CommCell
 - Function: Set-CVClient                                       in Module: Commvault.CommCell
 - Function: Set-CVClientGroup                                  in Module: Commvault.CommCell
 - Function: Backup-CVClientFileSystem                          in Module: Commvault.FileSystem

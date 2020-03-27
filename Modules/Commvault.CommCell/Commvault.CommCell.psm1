@@ -418,6 +418,250 @@ function Get-CVClient {
 }
 
 
+function Get-CVClientLicense {
+<#
+.SYNOPSIS
+    Method to get licenses for a client.
+.DESCRIPTION
+    Method to get licenses for a client.
+.PARAMETER Name
+    Get licenses on client specified by Name.
+.PARAMETER Id
+    Get licenses on client specified by Id.
+.EXAMPLE
+    Get-CVClientLicences -Name 'carbonwincs1'
+.OUTPUTS
+    [PsCustomObject] containing details of the license and the plaform type
+.NOTES
+    Author: Craig Tolley
+    Based on API Documentation at https://documentation.commvault.com/commvault/v11/article?p=47685.htm
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByName')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('Client')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id
+    )
+    
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+    
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+
+            if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                $clientObj = (Get-CVClient -Name $Name)
+                if ($null -ne $clientObj) {
+                    $Id = $clientObj.clientId
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+            }
+
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id)
+            $headerObj = Get-CVRESTHeader $sessionObj
+
+            $body = ''
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'licensesInfo'
+    
+            $response = Submit-CVRESTRequest $payload $validate
+    
+            if ($response.IsValid) {
+                Write-Output $response.Content.licensesInfo
+            }
+            
+            else {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): license information not found for client Id [$Id]"
+            }
+
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Revoke-CVClientLicense {
+<#
+.SYNOPSIS
+    Method to release licenses from a client.
+.DESCRIPTION
+    Method to release licenses from a client.
+.PARAMETER Name
+    Release licenses on client specified by Name.
+.PARAMETER Id
+    Release licenses on client specified by Id.
+.PARAMETER LicensesToRelease
+    Collection of licenses to release. Details of licenses and format can be found from running Get-CVClientLicense
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+.EXAMPLE
+    $licenses = Get-CVClientLicences -Name 'carbonwincs1'
+    Revoke-CvClientLicenses -Name 'carbonwincs1' -LicensesToRelease $licenses
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+.OUTPUTS
+    Outputs errorMessage and errorCode. Error code 0 is success.
+.NOTES
+    Author: Craig Tolley
+    Based on API Documentation at https://documentation.commvault.com/commvault/v11/article?p=92013.htm
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    Param (
+        [Alias('Client')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [System.Object] $LicensesToRelease,
+
+        [switch]$Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id) 
+            }
+            else {
+                $clientObj = Get-CVClient -Name $Name
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+                $Id = $clientObj.clientId
+            }
+
+            <#
+            {
+                "isClientLevelOperation": true,
+                "licensesInfo": [{
+                "platformType": 1,
+                "license": {
+                    "appType": 33,
+                    "licenseName": "Server File System - Windows File System"
+                }
+                }],
+                "clientEntity": {
+                "clientId": "client001"
+                }
+            }
+            #>
+
+            $body = @{}
+
+            $client = @{}
+            $client.Add('clientId', $Id)
+            $body.Add('clientEntity', $client)
+            
+            $licensesinfos = @()
+            ForEach ($l in $LicensesToRelease) {
+                $licenseinfo = @{}
+                $licenseinfo.Add("platformType",$LicensesToRelease.platformType)
+                        
+                $license = @{}
+                $license.Add("appType",$l.license.appType)
+                $license.Add("licenseName",$l.license.licenseName)
+                $licenseinfo.Add("license",$license)
+                
+                $licensesinfos += $licenseinfo
+            }
+            
+            $body.Add("licensesInfo",$licensesinfos)
+            $body = ($body | ConvertTo-Json -Depth 10)
+
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'errorCode'
+            $body
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+            else {
+                if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+
+            if ($response.IsValid) {
+                Write-Output $response.Content
+            }
+            else {
+                if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): release client license request failed for client id[$Id]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): release client license request failed for client name [$($clientObj.clientName)]"
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
 function Get-CVClientGroup {
 <#
 .SYNOPSIS
@@ -1282,6 +1526,389 @@ function Set-CVClient {
                 }
                 else {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): set client properties request failed for group [$($clientObj.clientName)]"
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Enable-CVClientActivity {
+<#
+.SYNOPSIS
+    Method to enable activity types on the specified client.
+
+.DESCRIPTION
+    Allows enable any of the following activity types:
+
+        Backup
+        Restore
+        AuxiliaryCopy
+        DisasterRecoveryBackup
+        ArchivePruning
+        MediaRecylce
+        SyntheticFull
+        AllActivity
+        Schedule
+        OnlineContentIndexing
+        OfflineContentIndexing
+
+    The current status of the client activity controls can be found using: 
+        (Get-CVClient -Name "carbonwincs1" -AllProperties).clientProps.clientActivityControl.activityControlOptions
+
+.PARAMETER Name
+    Enable activity on client specified by Name.
+
+.PARAMETER Id
+    Enable activity on client specified by Id.
+
+.PARAMETER ActivityType
+    Set of activities that should be enabled
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Enable the Backup and Archive Pruning activities on the client called carbonwincs1
+
+        Enable-CVClientActivity -Name carbonwincs1 -ActivityType ArchivePruning, Backup
+
+.EXAMPLE
+    Enable all activities on the client called carbonwincs1
+
+        Enable-CVClientActivity -Name carbonwincs1
+
+.EXAMPLE
+    $clientId = (Get-CVClient -Name carbonwincs1).client.clientId
+    Enable-CVClientActivity -Id $clientId -ActivityType ArchivePruning, Backup
+
+.EXAMPLE
+    Enable backup activity on the client called carbonwincs1, using the activityType enum value
+
+        Enable-CVClientActivity -Name carbonwincs1 -ActivityType 1
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing job submission result.
+
+.NOTES
+    Author: Craig Tolley
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('ClientName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [ValidateNotNullorEmpty()]
+        [CvActivityType[]]$ActivityType = [CVActivityType]::AllActivity,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id) 
+            }
+            else {
+                $clientObj = Get-CVClient -Name $Name
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
+            }
+
+            <# Request JSON format:
+            {
+                "clientProperties": {
+                    "clientProps": {
+                        "clientActivityControl": {
+                            "activityControlOptions": [
+                                {
+                                    "activityType": 1,
+                                    "enableAfterADelay": false,
+                                    "enableActivityType": true
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            #>
+            
+            $ActivityControlOptionsCol = @()
+            ForEach ($actType in $ActivityType) {
+                $activityControlOptions = @{}
+                $activityControlOptions.Add("activityType",$actType.value__)
+                $activityControlOptions.Add("enableActivityType",$true)
+                $activityControlOptions.Add("enableAfterADelay",$false)
+                $ActivityControlOptionsCol += $activityControlOptions
+            }
+
+            $clientActivityControl = @{}
+            $clientActivityControl.Add('activityControlOptions', $ActivityControlOptionsCol)
+    
+            $clientProps = @{}
+            $clientProps.Add('clientActivityControl', $clientActivityControl)
+
+            $clientProperties = @{}
+            $clientProperties.Add("clientProps",$clientProps)
+
+            $body = @{}
+            $body.Add("clientProperties",$clientProperties)
+            $body = ($body | ConvertTo-Json -Depth 10)
+
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+
+            $validate = 'response'
+
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+            else {
+                if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+
+            if ($response.IsValid) {
+                Write-Output $response.Content
+            }
+            else {
+                if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): disable client activity request failed for client [$Id]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): disable client activity request failed for client [$($clientObj.clientName)]"
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Disable-CVClientActivity {
+<#
+.SYNOPSIS
+    Method to disable activity types on the specified client.
+
+.DESCRIPTION
+    Allows disabling any of the following activity types:
+
+        Backup
+        Restore
+        AuxiliaryCopy
+        DisasterRecoveryBackup
+        ArchivePruning
+        MediaRecylce
+        SyntheticFull
+        AllActivity
+        Schedule
+        OnlineContentIndexing
+        OfflineContentIndexing
+
+.PARAMETER Name
+    Disable activity on client specified by Name.
+
+.PARAMETER Id
+    Disable activity on client specified by Id.
+
+.PARAMETER ActivityType
+    Set of activities that should be disabled
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Disable the Backup and Archive Pruning activities on the client called carbonwincs1
+
+        Disable-CVClientActivity -Name carbonwincs1 -ActivityType ArchivePruning, Backup
+
+.EXAMPLE
+    Disable all activities on the client called carbonwincs1
+
+        Disable-CVClientActivity -Name carbonwincs1
+
+.EXAMPLE
+    $clientId = (Get-CVClient -Name carbonwincs1).client.clientId
+    Disable-CVClientActivity -Id $clientId -ActivityType ArchivePruning, Backup
+
+.EXAMPLE
+    Disable backup activity on the client called carbonwincs1, using the activityType enum value
+
+        Disable-CVClientActivity -Name carbonwincs1 -ActivityType 1
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing job submission result.
+
+.NOTES
+    Author: Craig Tolley
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('ClientName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [ValidateNotNullorEmpty()]
+        [CvActivityType[]]$ActivityType = [CVActivityType]::AllActivity,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id) 
+            }
+            else {
+                $clientObj = Get-CVClient -Name $Name
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
+            }
+
+            <# Request JSON format:
+            {
+                "clientProperties": {
+                    "clientProps": {
+                        "clientActivityControl": {
+                            "activityControlOptions": [
+                                {
+                                    "activityType": 1,
+                                    "enableAfterADelay": false,
+                                    "enableActivityType": false
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            #>
+            
+            $ActivityControlOptionsCol = @()
+            ForEach ($actType in $ActivityType) {
+                $activityControlOptions = @{}
+                $activityControlOptions.Add("activityType",$actType.value__)
+                $activityControlOptions.Add("enableActivityType",$false)
+                $activityControlOptions.Add("enableAfterADelay",$false)
+                $ActivityControlOptionsCol += $activityControlOptions
+            }
+
+            $clientActivityControl = @{}
+            $clientActivityControl.Add('activityControlOptions', $ActivityControlOptionsCol)
+    
+            $clientProps = @{}
+            $clientProps.Add('clientActivityControl', $clientActivityControl)
+
+            $clientProperties = @{}
+            $clientProperties.Add("clientProps",$clientProps)
+
+            $body = @{}
+            $body.Add("clientProperties",$clientProperties)
+            $body = ($body | ConvertTo-Json -Depth 10)
+
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+
+            $validate = 'response'
+
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+            else {
+                if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+
+            if ($response.IsValid) {
+                Write-Output $response.Content
+            }
+            else {
+                if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): disable client activity request failed for client [$Id]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): disable client activity request failed for client [$($clientObj.clientName)]"
                 }
             }
         }
