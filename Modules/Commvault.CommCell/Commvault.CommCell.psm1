@@ -533,6 +533,299 @@ function Get-CVClientGroup {
 }
 
 
+function Add-CVClientToClientGroup {
+<#
+.SYNOPSIS
+    Method to add client groups to the specified client.
+
+.DESCRIPTION
+    Method to add client groups to the specified client. The groups specified will be added to the client. 
+
+    If the -Overwrite option is specified, then all existing groups are removed and only the specified groups will be added. 
+
+.PARAMETER Name
+    Add groups to client specified by Name.
+
+.PARAMETER Id
+    Add groups to client specified by Id.
+
+.PARAMETER ClientGroupName
+    Name of the group to be added to the client. Group must exist.
+
+.PARAMETER Overwrite
+    Switch to overwrite all existing groups on the client with the ones listed in ClientGroupName parameter
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Add-CVClientToClientGroup -Name 'carbonwincs1' -ClientGroupName "GroupName1"
+
+.EXAMPLE
+    Add-CVClientToClientGroup -Name 'carbonwincs1' -ClientGroupName "GroupName1", "GroupName2" -Overwrite
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing job submission result.
+
+.NOTES
+    Author: Craig Tolley
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('ClientName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [String[]] $ClientGroupName,
+
+        [Switch] $Overwrite,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id) 
+            }
+            else {
+                $clientObj = Get-CVClient -Name $Name
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
+            }
+
+            $clientGroupsCol = @()
+            ForEach ($grp in $ClientGroupName) {
+                $clientGroup = @{}
+                $clientGroup.Add("clientGroupName",$grp)
+                $clientGroupsCol += $clientGroup
+            }
+
+            $clientProperties = @{}
+            $clientProperties.Add("clientGroups",$clientGroupsCol)
+
+            if ($Overwrite) {
+                $clientProperties.Add("clientGroupsOperationType","OVERWRITE")
+            }
+            else {
+                $clientProperties.Add("clientGroupsOperationType","ADD")
+            }
+
+            $body = @{}
+            $body.Add("clientProperties",$clientProperties)
+            $body = ($body | ConvertTo-Json -Depth 10)
+            $body
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'response'
+
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+            else {
+                if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+
+            if ($response.IsValid) {
+                Write-Output $response.Content
+            }
+            else {
+                if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): add client to client groups failed for client [$Id] and groups [$($ClientGroupName -join ", ")]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): add client to client groups failed for client [$($clientObj.clientName)] and groups [$($ClientGroupName -join ", ")]"
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Remove-CVClientFromClientGroup {
+<#
+.SYNOPSIS
+    Method to remove client groups from the specified client.
+
+.DESCRIPTION
+    Method to remove client groups from the specified client. The groups specified will be removed from the client. 
+
+.PARAMETER Name
+    Remove groups from client specified by Name.
+
+.PARAMETER Id
+    Remove groups from client specified by Id.
+
+.PARAMETER ClientGroupName
+    Name of the group to be removed to the client. Group must exist.
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Remove-CVClientFromClientGroup -Name 'carbonwincs1' -ClientGroupName "GroupName1"
+
+.EXAMPLE
+    Remove-CVClientFromClientGroup -Name 'carbonwincs1' -ClientGroupName "GroupName1", "GroupName2"
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing job submission result.
+
+.NOTES
+    Author: Craig Tolley
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('ClientName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [String[]] $ClientGroupName,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id) 
+            }
+            else {
+                $clientObj = Get-CVClient -Name $Name
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
+            }
+
+            $clientGroupsCol = @()
+            ForEach ($grp in $ClientGroupName) {
+                $clientGroup = @{}
+                $clientGroup.Add("clientGroupName",$grp)
+                $clientGroupsCol += $clientGroup
+            }
+
+            $clientProperties = @{}
+            $clientProperties.Add("clientGroups",$clientGroupsCol)
+            $clientProperties.Add("clientGroupsOperationType","DELETE")
+
+            $body = @{}
+            $body.Add("clientProperties",$clientProperties)
+            $body = ($body | ConvertTo-Json -Depth 10)
+
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'response'
+
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+            else {
+                if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
+                    $response = Submit-CVRESTRequest $payload $validate
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+
+            if ($response.IsValid) {
+                Write-Output $response.Content
+            }
+            else {
+                if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): remove client from client groups failed for client [$Id] and groups [$($ClientGroupName -join ", ")]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): remove client from client groups failed for client [$($clientObj.clientName)] and groups [$($ClientGroupName -join ", ")]"
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
 function Get-CVSubclient {
 <#
 .SYNOPSIS

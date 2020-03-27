@@ -661,6 +661,24 @@ function GetAPIDetail ([String] $Request) {
             
             }
         
+            'Add-CVClientToClientGroup' = @{
+        
+                Description = 'Add the specified client from the specified client groups'
+                Endpoint    = 'Client/{clientId}'
+                Method      = 'Post'
+                Body        = ''
+            
+            }
+
+            'Remove-CVClientFromClientGroup' = @{
+        
+                Description = 'Remove the specified client from the specified client groups'
+                Endpoint    = 'Client/{clientId}'
+                Method      = 'Post'
+                Body        = ''
+            
+            }
+
             'Add-CVClientGroup' = @{
         
                 Description = 'Add new client group on CommServe'
