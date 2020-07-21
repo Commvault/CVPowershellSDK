@@ -543,7 +543,7 @@ function Get-CVStoragePolicy {
     Author: Gary Stoops
     Company: Commvault
 #>
-[CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory = $False)]
@@ -639,7 +639,7 @@ function Get-CVStoragePolicy {
                 }
                 foreach ($policy in $policiesToProcess) {
                     if ($AllProperties) {
-                        $sessionObj = Get-CVSessionDetail 'GetStoragePolicyDetails'
+                        $sessionObj = Get-CVSessionDetail 'GetStoragePolicyDetail'
 
                         if ($PSCmdlet.ParameterSetName -eq 'ByName' -or $PSCmdlet.ParameterSetName -eq 'ByObject') {
                             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{storagePolicyId}', $policy.storagePolicyAndCopy.storagePolicyId)
@@ -695,4 +695,736 @@ function Get-CVStoragePolicy {
             throw $_
         }
     }
+}
+
+
+function Get-CVBlackoutWindow {
+<#
+.SYNOPSIS
+    Method to retrieve blackout window rules from the CommServe.
+
+.DESCRIPTION
+    Method to retrieve blackout window rules from the CommServe. 
+    Output can be filtered by rule Id, Name, CommcellId, ClientId, AppTypeId, InstanceId, BackupsetId, SubclientId, ClientgroupId, CompanyId, or SchedulePolicyId.
+
+.PARAMETER Name
+    Specify blackout window rules to be output by Name.
+
+.PARAMETER Id
+    Specify blackout window rule to be output by Id.
+
+.PARAMETER CommcellId
+    Specify blackout window rule subset by CommcellId (default = 2).
+
+.PARAMETER ClientId
+    Specify blackout window rule subset by ClientId.
+
+.PARAMETER AppTypeId
+    Specify blackout window rule subset by AppTypeId.
+
+.PARAMETER InstanceId
+    Specify blackout window rule subset by InstanceId.
+
+.PARAMETER BackupsetId
+    Specify blackout window rule subset by BackupsetId.
+
+.PARAMETER SubclientId
+    Specify blackout window rule subset by SubclientId.
+
+.PARAMETER ClientgroupId
+    Specify blackout window rule subset by ClientgroupId.
+
+.PARAMETER CompanyId
+    Specify blackout window rule subset by CompanyId.
+
+.PARAMETER SchedulePolicyId
+    Specify blackout window rule subset by SchedulePolicyId.
+
+.EXAMPLE
+    Get-CVBlackoutWindow
+
+.EXAMPLE
+    Get-CVBlackoutWindow -Name CommCell-BWR-1
+    
+.EXAMPLE
+    Get-CVBlackoutWindow -Id 3
+
+.EXAMPLE
+    Get-CVBlackoutWindow -ClientgroupId 4
+    
+.EXAMPLE
+    Get-CVBlackoutWindow -ClientId 2
+    
+.EXAMPLE
+    Get-CVBlackoutWindow -AppTypeId 81
+    
+.EXAMPLE
+    Get-CVBlackoutWindow -InstanceId 9
+    
+.OUTPUTS
+    Outputs [PSCustomObject] containing blackout window rules.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByList')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $False, ParameterSetName = 'ByName', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+    
+        [Parameter(Mandatory = $False, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $CommcellId = 2,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $ClientId = 0,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $AppTypeId = 0,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $InstanceId = 0,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $BackupsetId = 0,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $SubclientId = 0,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $ClientgroupId = 0,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $CompanyId = 0,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $SchedulePolicyId = 0
+    )
+    
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                $sessionObj = Get-CVSessionDetail 'GetBlackoutWindowDetail'
+            }
+            else {
+                $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            }
+            $endpointSave = $sessionObj.requestProps.endpoint
+            $outputCount = 0
+        }
+        catch {
+            throw $_
+        }
+    }
+    
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+    
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+
+            if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{ruleId}', $Id)
+            }
+            else {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{commcellId}', $CommcellId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $ClientId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{appTypeId}', $AppTypeId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $InstanceId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{backupsetId}', $BackupsetId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{subclientId}', $SubclientId) 
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientgroupId}', $ClientgroupId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{companyId}', $CompanyId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{schedulePolicyId}', $SchedulePolicyId)
+            }
+
+            $validate = 'operationWindow'
+            
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $body = ''
+            $payload = @{ }
+            $payload.Add("headerObject", $headerObj)
+            $payload.Add("body", $body)
+                
+            $response = Submit-CVRESTRequest $payload $validate
+
+            if ($response.IsValid) {
+                foreach ($rule in $response.Content.operationWindow) {
+                    if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                        if ($Name -eq $rule.name) {
+                            Write-Output $rule
+                            $outputCount++
+                        }
+                    }
+                    else { # 'ByList'
+                        Write-Output $rule
+                        $outputCount++
+                    }
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+
+        try {
+            if ($outputCount -eq 0) {
+                if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): blackout window rule not found having Id [$Id]"
+                }
+                elseif ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): blackout window rule not found having name [$name]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): no blackout window rules found"
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+}
+
+
+function Remove-CVBlackoutWindow {
+<#
+.SYNOPSIS
+    Method to remove/delete an blackout window rule from the CommServe.
+
+.DESCRIPTION
+    Method to remove/delete an blackout window rule from the CommServe.
+
+.PARAMETER Id
+    Specify blackout window rule to be removed by Id.
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Remove-CVBlackoutWindow -Id 42
+    
+.OUTPUTS
+    Outputs [PSCustomObject] containing remove rule result.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Switch] $Force
+    )
+    
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+    
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+    
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{ruleId}', $Id)
+            
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $body = ''
+            $payload = @{ }
+            $payload.Add("headerObject", $headerObj)
+            $payload.Add("body", $body)
+            $validate = ''
+                
+            if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                $response = Submit-CVRESTRequest $payload $validate
+            }
+            else {
+                $response = Submit-CVRESTRequest $payload $validate -DryRun
+            }
+
+            if ($response.IsValid) {
+                Write-Output $response.Content
+            }
+            else {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): remove workflow request failed for Id [$Id]"
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Set-CVBlackoutWindow {
+<#
+.SYNOPSIS
+    Method to set/update a blackout window rule.
+
+.DESCRIPTION
+    Method to set/update a blackout window rule.
+
+.PARAMETER Properties
+    Piped-in Properties set. 
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    PS C:\>$props = Get-CVBlackoutWindow -Name 'My Blackout Rule'
+    PS C:\>$props.name = 'Your Blackout Rule'
+    PS C:\>$props | Set-CVBlackoutWindow -Force
+
+.EXAMPLE
+    PS C:\>$props = Get-CVBlackoutWindow -Id 7
+    PS C:\>$props.operations = @(8, 512, 524888)
+    PS C:\>$props | Set-CVBlackoutWindow -Force
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing job submission result.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'Medium')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [System.Object] $Properties,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            if ($Force -or $PSCmdlet.ShouldProcess($Properties.name)) {
+                ProcessBlackoutWindowUpdate $sessionObj $Properties $False
+            }
+            else {
+                ProcessBlackoutWindowUpdate $sessionObj $Properties $True
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Add-CVBlackoutWindow {
+<#
+.SYNOPSIS
+    Method to add/create an blackout window rule.
+
+.DESCRIPTION
+    Method to add/create an blackout window rule.
+
+.PARAMETER Properties
+    Piped-in Properties set. 
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    PS C:\>$props = Get-CVBlackoutWindow -Name 'My Blackout Rule'
+    PS C:\>$props.name='Your Blackout Rule'
+    PS C:\>$props | Add-CVBlackoutWindow -Force
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing job submission result.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'Medium')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [System.Object] $Properties,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            if ($Force -or $PSCmdlet.ShouldProcess($Properties.name)) {
+                ProcessBlackoutWindowUpdate $sessionObj $Properties $False
+            }
+            else {
+                ProcessBlackoutWindowUpdate $sessionObj $Properties $True
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Enable-CVBlackoutWindowIgnoreHigherLevelRules {
+<#
+.SYNOPSIS
+    Method to enable 'ignore CommCell higher-level blackout window rules' by entity.
+
+.DESCRIPTION
+    Method to enable 'ignore CommCell higher-level blackout window rules' by entity.
+
+.PARAMETER ClientId
+    Specify entity by ClientId.
+
+.PARAMETER AppTypeId
+    Specify entity by AppTypeId.
+
+.PARAMETER InstanceId
+    Specify entity by InstanceId.
+
+.PARAMETER BackupsetId
+    Specify entity by BackupsetId.
+
+.PARAMETER SubclientId
+    Specify entity by SubclientId.
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Enable-CVBlackoutWindowIgnoreHigherLevelRules -SubclientId 4
+    
+.OUTPUTS
+    Outputs [PSCustomObject] containing result code.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $ClientId,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $AppTypeId,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $InstanceId,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $BackupsetId,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $SubclientId,
+
+        [Switch] $Force
+    )
+    
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+    
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+    
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            ProcessBlackoutWindowIgnoreHigherLevelRules $sessionObj $ClientId $AppTypeId $InstanceId $BackupsetId $SubclientId $Force.IsPresent
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function Disable-CVBlackoutWindowIgnoreHigherLevelRules {
+<#
+.SYNOPSIS
+    Method to disable 'ignore CommCell higher-level blackout window rules' by entity.
+
+.DESCRIPTION
+    Method to disable 'ignore CommCell higher-level blackout window rules' by entity.
+
+.PARAMETER ClientId
+    Specify entity by ClientId.
+
+.PARAMETER AppTypeId
+    Specify entity by AppTypeId.
+
+.PARAMETER InstanceId
+    Specify entity by InstanceId.
+
+.PARAMETER BackupsetId
+    Specify entity by BackupsetId.
+
+.PARAMETER SubclientId
+    Specify entity by SubclientId.
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    Disable-CVBlackoutWindowIgnoreHigherLevelRules -SubclientId 4
+    
+.OUTPUTS
+    Outputs [PSCustomObject] containing result code.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $ClientId,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $AppTypeId,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $InstanceId,
+
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $BackupsetId,
+        
+        [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $SubclientId,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            ProcessBlackoutWindowIgnoreHigherLevelRules $sessionObj $ClientId $AppTypeId $InstanceId $BackupsetId $SubclientId $Force.IsPresent
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+
+function ProcessBlackoutWindowUpdate([System.Object] $Session, [System.Object] $Properties, [bool] $DryRun) {
+    <#
+        ruleEnabled    : True
+        doNotSubmitJob : False
+        endDate        : 1588230000
+        level          : 1
+        name           : GRS-LaptopClientsBoR
+        ruleId         : 1
+        startDate      : 1588057200
+        operations     : {1}
+        company        : @{_type_=61; providerId=0; providerDomainName=Commcell}
+        entity         : @{schedulePolicyId=0; subclientId=0; clientGroupId=4; applicationId=0; clientName=Laptop Clients; backupsetId=0; commCellName=carbonwincs1; instanceId=0; schedulePolicyName=; clientId=0; subclientName=; backupsetName=;
+                        instanceName=; clientGroupName=Laptop Clients; _type_=0; appName=}
+        dayTime        : {@{startTime=28800; endTime=64800; dayOfWeek=System.Object[]}}            {
+    #>            
+    $body = @{}
+    $opWin = @{}
+    if (HasProperty $Properties 'ruleEnabled') {
+        $opWin.Add('ruleEnabled', $Properties.ruleEnabled)
+    }
+    if (HasProperty $Properties 'doNotSubmitJob') {
+        $opWin.Add('doNotSubmitJob', $Properties.doNotSubmitJob)
+    }
+    if (HasProperty $Properties 'endDate') {
+        $opWin.Add('endDate', $Properties.endDate)
+    }
+    if (HasProperty $Properties 'level') {
+        $opWin.Add('level', $Properties.level)
+    }
+    if (HasProperty $Properties 'name') {
+        $opWin.Add('name', $Properties.name)
+    }
+    if (HasProperty $Properties 'ruleId') {
+        $opWin.Add('ruleId', $Properties.ruleId)
+    }
+    if (HasProperty $Properties 'startDate') {
+        $opWin.Add('startDate', $Properties.startDate)
+    }
+    if (HasProperty $Properties 'operations') {
+        $opWin.Add('operations', $Properties.operations)
+    }
+    if (HasProperty $Properties 'company') {
+        $opWin.Add('company', $Properties.company)
+    }
+    if (HasProperty $Properties 'dayTime') {
+        $opWin.Add('dayTime', $Properties.dayTime)
+    }
+
+    $entity = $Properties.entity
+    $body.Add('operationWindow', $opWin)
+    $body.Add('entity', $entity)
+    $body = ($body | ConvertTo-Json -Depth 10)
+
+    $headerObj = Get-CVRESTHeader $sessionObj
+    $payload = @{ }
+    $payload.Add('headerObject', $headerObj)
+    $payload.Add('body', $body)
+    $validate = ''
+
+    if (-not $DryRun) {
+        $response = Submit-CVRESTRequest $payload $validate
+    }
+    else {
+        $response = Submit-CVRESTRequest $payload $validate -DryRun
+    }
+
+    Write-Output $response.Content
+}
+
+
+function ProcessBlackoutWindowIgnoreHigherLevelRules {
+    [CmdletBinding(SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [System.Object] $Session,
+        [Int32] $ClientId,
+        [Int32] $AppTypeId,
+        [Int32] $InstanceId,
+        [Int32] $BackupsetId,
+        [Int32] $SubclientId,
+        [bool] $Force
+    )
+
+    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $ClientId)
+    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{appTypeId}', $AppTypeId)
+    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $InstanceId)
+    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{backupsetId}', $BackupsetId)
+    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{subclientId}', $SubclientId) 
+
+    $headerObj = Get-CVRESTHeader $sessionObj
+    $body = ''
+    $payload = @{ }
+    $payload.Add("headerObject", $headerObj)
+    $payload.Add("body", $body)
+        
+    $validate = 'error'
+
+    if ($Force -or $PSCmdlet.ShouldProcess($sessionObj.requestProps.endpoint)) {
+        $response = Submit-CVRESTRequest $payload $validate
+    
+        if ($response.IsValid) {
+            if ($response.Content.error.errorCode -eq 0) {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand.Name): request was successful"      
+            }
+            else {
+                Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand.Name): request failed: [$($response.Content.error)]"
+            }
+        } 
+        else {
+            Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand.Name): request failed: [$($response.Content)]"      
+        }
+    }
+    else {
+        $response = Submit-CVRESTRequest $payload $validate -DryRun
+    }
+}
+
+
+function HasProperty($Object, $PropertyName)
+{
+    $PropertyName -in $Object.PSobject.Properties.Name
 }

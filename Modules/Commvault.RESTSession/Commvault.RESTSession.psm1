@@ -924,7 +924,7 @@ function GetAPIDetail ([String] $Request) {
             
             'Set-CVBlackoutWindow' = @{
         
-                Description = 'This operation updates an operation rule'
+                Description = 'Update an existing blackwout window rule'
                 Endpoint    = 'OperationWindow'
                 Method      = 'Put'
                 Body        = ''
@@ -932,7 +932,7 @@ function GetAPIDetail ([String] $Request) {
             
             'Add-CVBlackoutWindow' = @{
         
-                Description = 'This operation creates an operation rule'
+                Description = 'Create a new blackwout window rule'
                 Endpoint    = 'OperationWindow'
                 Method      = 'Post'
                 Body        = ''
@@ -940,24 +940,24 @@ function GetAPIDetail ([String] $Request) {
             
             'Remove-CVBlackoutWindow' = @{
         
-                Description = 'This operation deletes a blackout rule from the CommServe'
+                Description = 'Delete an existing blackwout window rule'
                 Endpoint    = 'OperationWindow/{ruleId}'
                 Method      = 'Delete'
                 Body        = ''
             }
 
-            'Enable-CVIgnoreHigherLevelBlackoutWindowRules' = @{
+            'Enable-CVBlackoutWindowIgnoreHigherLevelRules' = @{
         
                 Description = 'Enable ignore higher-level blackout window rules feature'
-                Endpoint    = 'OperationWindow/Ignore/Action/Enable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
+                Endpoint    = 'OperationWindow/IgnoreHigherLevelRules/Action/Enable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
                 Method      = 'Put'
                 Body        = ''
             }
             
-            'Disable-CVIgnoreHigherLevelBlackoutWindowRules' = @{
+            'Disable-CVBlackoutWindowIgnoreHigherLevelRules' = @{
         
                 Description = 'Disable ignore higher-level blackout window rules feature'
-                Endpoint    = 'OperationWindow/Ignore/Action/Disable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
+                Endpoint    = 'OperationWindow/IgnoreHigherLevelRules/Action/Disable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
                 Method      = 'Put'
                 Body        = ''
             }
