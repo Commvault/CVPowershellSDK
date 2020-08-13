@@ -1258,7 +1258,7 @@ function Restore-CVVirtualMachine {
         [Int32] $JobId,
 
         [Parameter(Mandatory = $False)]   
-        [CVCopyPrecedence] $CopyPrecedence = 'Primary',
+        [Int32] $CopyPrecedence,
 
         [Parameter(Mandatory = $False)]
         [CVVSARestoreType] $RestoreType = 'FullVirtualMachine',
@@ -1520,7 +1520,7 @@ function Restore-CVVirtualMachine {
             $parameters.Add('passUnconditionalOverride', $OverwriteExisting.IsPresent)
             $parameters.Add('powerOnVmAfterRestore', $PowerOnAfterRestore.IsPresent)
             if ($JobId -gt 0) { $parameters.Add('jobId', $JobId) }
-            #$parameters.Add('copyPrecedence', $CopyPrecedence.value__) #GRSTODO: job fails with this specified
+            #$parameters.Add('copyPrecedence', $CopyPrecedence) #GRSTODO: job fails with this specified
     
             if ($RestoreType -eq 'FullVirtualMachine') {
                 if ($OutofPlace) {

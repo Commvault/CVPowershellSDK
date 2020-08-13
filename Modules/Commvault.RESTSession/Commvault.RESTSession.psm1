@@ -987,7 +987,6 @@ function GetAPIDetail ([String] $Request) {
         
                 Description = 'Get information about SQL clones'
                 Endpoint    = 'sql/clones?client={clientId}&instance={instanceId}'
-                #Endpoint    = 'sql/clones?client={clientId}&instance={instanceId}&propertyLevel={propertyLevel}&search_term={searchTerm}&cloneName={cloneName}&sourceInstance={sourceInstance}&destinationInstance={destinationInstance}&sourceDB={sourceDatabase}&sort={sort}&offset={offset}&limit={limit}'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -1028,16 +1027,14 @@ function GetAPIDetail ([String] $Request) {
         
                 Description = 'Get backup history for a specific SQL database'
                 Endpoint    = 'sql/instance/{instanceId}/database/{databaseId}/history/backup'
-                #Endpoint    = 'sql/instance/{instanceId}/database/{databaseId}/history/backup?latest={latest}&from={fromTime}&to={toTime}'
                 Method      = 'Get'
                 Body        = ''
             }
     
-            'Get-CVSQLDatabaseBackupJob' = @{
+            'GetSQLDatabaseJobDetail' = @{
         
                 Description = 'Get SQL database backup job details for a specific instance/database/job'
                 Endpoint    = 'v2/sql/instances/{instanceId}/databases/{databaseId}/jobs/{jobId}'
-                #Endpoint    = 'sql/instance/{instanceId}/database/{databaseId}/history/backup/{jobId}'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -1062,16 +1059,14 @@ function GetAPIDetail ([String] $Request) {
         
                 Description = 'Get backup history for a specific SQL instance'
                 EndPoint    = 'sql/instance/{instanceId}/history/backup'
-                #EndPoint    = 'sql/instance/{instanceId}/history/backup?latest={latest}&from={fromTime}&to={toTime}'
                 Method      = 'Get'
                 Body        = ''
             }
     
-            'Get-CVSQLInstanceBackupJob' = @{
+            'GetSQLInstanceJobDetail' = @{
         
                 Description = 'Get SQL instance backup job details for a specific instance/job'
                 Endpoint    = 'v2/sql/instances/{instanceId}/jobs/{jobId}'
-                #Endpoint    = 'sql/instance/{instanceId}/history/backup/{jobId}'
                 Method      = 'Get'
                 Body        = ''
             }
