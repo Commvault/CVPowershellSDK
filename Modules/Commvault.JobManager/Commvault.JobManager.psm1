@@ -18,6 +18,7 @@ function Get-CVJob {
 
 .DESCRIPTION
     Get the list of all jobs. Based on parameters this commandlet filters the output.
+    This method is implemented with Powershell paging support.
 
 .PARAMETER ClientName
     Filter output based on ClientName.
@@ -37,8 +38,29 @@ function Get-CVJob {
 .PARAMETER Details
     Retrieves the details for a job.
 
+.PARAMETER First
+    Get list of jobs with paging support -First 20 (20 per page).
+
+.PARAMETER Skip
+    Get list of jobs with paging support -First 20 -Skip 5 (20 per page, skip first 5 jobs).
+
+.PARAMETER IncludeTotalCount
+    Include total count of result record set.
+
 .EXAMPLE
     Get-CVJob
+
+.EXAMPLE
+    Get-CVJob -CompletedTime 8 -IncludeTotalCount
+    
+.EXAMPLE
+    Get-CVJob -CompletedTime 72 -IncludeTotalCount -First 5    
+
+.EXAMPLE
+    Get-CVJob -CompletedTime 240 -IncludeTotalCount -First 10 -Skip 0    
+
+.EXAMPLE
+    Get-CVJob -CompletedTime 240 -IncludeTotalCount -First 10 -Skip 20
     
 .EXAMPLE
     Get-CVJob -Details
@@ -68,7 +90,7 @@ function Get-CVJob {
     Author: Gary Stoops
     Company: Commvault
 #>
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding(SupportsPaging = $True, DefaultParameterSetName = 'Default')]
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory = $False, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
@@ -183,7 +205,18 @@ function Get-CVJob {
                     $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{completedJobLookupTime}', $null)
                 }
     
-                $headerObj = Get-CVRESTHeader $sessionObj
+                if ($PSCmdlet.PagingParameters.First -eq [Uint64]::MaxValue) { # MaxValue is system default
+                    if ($PSCmdlet.PagingParameters.IncludeTotalCount.IsPresent) {
+                        $headerObj = Get-CVRESTHeader $sessionObj -Limit 0 -Offset 0
+                    }
+                    else {
+                        $headerObj = Get-CVRESTHeader $sessionObj
+                    }
+                }
+                else {
+                    $headerObj = Get-CVRESTHeader $sessionObj -Limit $PSCmdlet.PagingParameters.First -Offset $PSCmdlet.PagingParameters.Skip
+                }
+
                 $body = ''
                 $payload = @{ }
                 $payload.Add('headerObject', $headerObj)
@@ -240,6 +273,10 @@ function Get-CVJob {
     }
 
     end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+        if ($PSCmdlet.PagingParameters.IncludeTotalCount) {
+            [double] $accuracy = 1.0
+            $PSCmdlet.PagingParameters.NewTotalCount($response.Content.totalRecordsWithoutPaging, $accuracy)
+        }
     }
 }
 

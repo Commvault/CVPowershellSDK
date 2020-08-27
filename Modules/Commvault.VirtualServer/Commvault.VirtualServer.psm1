@@ -305,7 +305,7 @@ function Get-CVVirtualMachine {
                 else { # ByDefault
                     # query with startPage=0, pageSize=0 to get totalRecords
                     $pagingInfo = '0,0'
-                    $headerObj = Get-CVRESTHeader $sessionObj $pagingInfo
+                    $headerObj = Get-CVRESTHeader $sessionObj -PagingInfo $pagingInfo
                     $body = ''
                     $payload = @{}
                     $payload.Add('headerObject', $headerObj)
@@ -331,7 +331,7 @@ function Get-CVVirtualMachine {
                             
                             $pagingObj.startPage++
 
-                            $headerObj = Get-CVRESTHeader $sessionObj $pagingInfo
+                            $headerObj = Get-CVRESTHeader $sessionObj -PagingInfo $pagingInfo
                             $payload.Clear()
                             $payload.Add('headerObject', $headerObj)
                             $payload.Add('body', $body)
