@@ -859,7 +859,12 @@ function Get-CVId {
                 $response = Submit-CVRESTRequest $payload $validate
         
                 if ($response.IsValid) {
-                    Write-Output $response.Content
+                    if ($response.Content.clientId -eq -32000) {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$ClientName]"
+                    }
+                    else {
+                        Write-Output $response.Content
+                    }
                 }
                 else {
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): unable to retrieve Id for the Client"
