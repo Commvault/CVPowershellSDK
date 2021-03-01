@@ -172,9 +172,12 @@ function Get-CVJob {
             }
             else {
                 if (-not [String]::IsNullOrEmpty($ClientName)) {
-                    $clientObj = Get-CVClient -Client $ClientName
+                    $clientObj = Get-CVId -ClientName $ClientName
                     if ($null -ne $clientObj) { 
                         $sessionObj.requestProps.endpoint += '&clientId=' + $clientObj.clientId
+                    }
+                    else {
+                        return
                     }
                 }
     

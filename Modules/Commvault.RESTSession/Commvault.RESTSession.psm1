@@ -744,6 +744,15 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             
             }
+
+            'Get-CVId' = @{
+        
+                Description = 'Gets Id of a given entity'
+                Endpoint    = 'GetId?clientName={clientName}'
+                Method      = 'Get'
+                Body        = ''
+            
+            }
     
             #--------------- Commvault.FileSystem ---------------
 
