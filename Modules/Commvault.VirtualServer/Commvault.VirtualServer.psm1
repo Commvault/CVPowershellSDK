@@ -2076,20 +2076,31 @@ function PrepareContentBodyJson ([HashTable] $EntityObj) {
             $entities = $EntityObj.Entity -split ","
             if ($entities) {
                 foreach ($entity in $entities) {
-                    $vmProps = Get-CVVirtualMachine -Name $entity -ClientId $EntityObj.clientId
-                    if ($null -ne $vmProps -and $null -ne $vmProps.strGUID) {
-                        $uuid = $vmProps.strGUID
-                    }
-                    else {
-                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine GUID not found for entity [$entity]"
-                        continue
+                    $uuid = $null
+                    if ($EntityObj.EntityType.value__ -ne "VMName")
+                    {
+                        $vmProps = Get-CVVirtualMachine -Name $entity -ClientId $EntityObj.clientId
+                        if ($null -ne $vmProps -and $null -ne $vmProps.strGUID) {
+                            $uuid = $vmProps.strGUID
+                        }
+                        else {
+                            Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): virtual machine GUID not found for entity [$entity]"
+                            continue
+                        }
                     }
 
                     $vmObj = [ordered]@{ }
                     $vmObj.Add('allOrAnyChildren' , $True)
                     $vmObj.Add('displayName'      , $entity)
                     $vmObj.Add('equalsOrNotEquals', $True)
-                    $vmObj.Add('name'             , $uuid)
+                    if ($uuid -eq $null)
+                    {
+                        $vmObj.Add('name'             , '')
+                    }
+                    else
+                    {
+                        $vmObj.Add('name'             , $uuid)
+                    }                 
                     $vmObj.Add('type'             , $EntityObj.EntityType.value__)
                     $vmObj.Add('path'             , '')
                     $null = $childrenNode_arr.Add($vmObj)
