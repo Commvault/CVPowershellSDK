@@ -2077,7 +2077,7 @@ function PrepareContentBodyJson ([HashTable] $EntityObj) {
             if ($entities) {
                 foreach ($entity in $entities) {
                     $uuid = $null
-                    if ($EntityObj.EntityType.value__ -ne "VMName")
+                    if ($EntityObj.EntityType.value__ -ne 10)
                     {
                         $vmProps = Get-CVVirtualMachine -Name $entity -ClientId $EntityObj.clientId
                         if ($null -ne $vmProps -and $null -ne $vmProps.strGUID) {
