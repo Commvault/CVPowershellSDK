@@ -802,7 +802,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVJob' = @{
         
                 Description = 'Get the list of all jobs in CommServe'
-                Endpoint    = 'Job?completedJobLookupTime={completedJobLookupTime}'
+                Endpoint    = 'Job?completedJobLookupTime={completedJobLookupTime}&limit={limit}'
                 Method      = 'Get'
                 Body        = ''
             }

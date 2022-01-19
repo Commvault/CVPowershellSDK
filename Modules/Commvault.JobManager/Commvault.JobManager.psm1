@@ -38,6 +38,9 @@ function Get-CVJob {
 .PARAMETER Details
     Retrieves the details for a job.
 
+.PARAMETER limit
+    The number of results to be listed in a page. Used for changing the paging limits. By default, the limit is 100 results per page.
+
 .PARAMETER First
     Get list of jobs with paging support -First 20 (20 per page).
 
@@ -117,6 +120,10 @@ function Get-CVJob {
         [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [Int32] $CompletedTime = 24, # default 24 hours
+
+        [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
+        [ValidateNotNullorEmpty()]
+        [Int32] $limit = 100,
 
         [Switch] $Details
     )
@@ -206,6 +213,13 @@ function Get-CVJob {
                 }
                 else {
                     $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{completedJobLookupTime}', $null)
+                }
+
+                if ($limit) {
+                    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{limit}', $limit)
+                }
+                else {
+                    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{limit}', $null)
                 }
     
                 if ($PSCmdlet.PagingParameters.First -eq [Uint64]::MaxValue) { # MaxValue is system default
