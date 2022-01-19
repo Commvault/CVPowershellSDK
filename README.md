@@ -101,7 +101,6 @@ Available From V11 SP16:
 - Function: Get-CVDiskSpace                                    in Module: Commvault.StorageResources
 - Function: Get-CVSubclientMediaAgent                          in Module: Commvault.StorageResources
 - Function: Get-CVLibrary                                      in Module: Commvault.StorageResources
-- Function: New-CVLibrary                                      in Module: Commvault.StorageResources
 - Function: Get-CVMediaAgent                                   in Module: Commvault.StorageResources
 - Function: Get-CVVirtualMachine                               in Module: Commvault.VirtualServer
 - Function: Add-CVVirtualMachine                               in Module: Commvault.VirtualServer
