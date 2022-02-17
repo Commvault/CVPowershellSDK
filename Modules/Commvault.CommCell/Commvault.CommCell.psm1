@@ -1023,14 +1023,14 @@ function Set-CVClient {
     $clientProps = Get-CVClient -Name 'carbonwincs1' -AllProperties
     PS C:\>$clientProps.client.displayName='carbonwincs1-1'
     PS C:\>$clientProps.client.clientDescription = 'carbonwincs1-1 description modified with REST API Post request'
-    PS C:\>$clientProps.client | Set-CVClient -Name 'carbonwincs1' -Force
+    PS C:\>$clientProps | Set-CVClient -Name 'carbonwincs1' -Force
 
 .EXAMPLE
     $clientId = (Get-CVVirtualMachine -Name INSIELVM-92-pl).client.clientId
     PS C:\>$clientProps = Get-CVClient -Id $clientId -AllProperties
     PS C:\>$clientProps.client.displayName='INSIELVM-92-pl'
     PS C:\>$clientProps.client.clientDescription = 'INSIELVM-92-pl description modified with REST API Post request'
-    PS C:\>$clientProps.client | Set-CVClient -Id $clientId
+    PS C:\>$clientProps | Set-CVClient -Id $clientId
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1105,8 +1105,8 @@ function Set-CVClient {
                 }
             }
             #>
-            $client = @{}
-            $client.Add('client', $Properties)
+            #$client = @{}
+            #$client.Add('client', $Properties)
             #$entity = @{}
             #$entity.Add('clientName', $clientObj.clientName)
             #[System.Collections.ArrayList] $entity_arr = @()
@@ -1115,7 +1115,7 @@ function Set-CVClient {
             #$association.Add('entity', $entity_arr)
     
             $body = @{}
-            $body.Add('clientProperties', $client)
+            $body.Add('clientProperties', $Properties)
             #$body.Add('association', $association)
             $body = ($body | ConvertTo-Json -Depth 10)
 
