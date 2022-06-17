@@ -802,7 +802,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVJob' = @{
         
                 Description = 'Get the list of all jobs in CommServe'
-                Endpoint    = 'Job?completedJobLookupTime={completedJobLookupTime}'
+                Endpoint    = 'Job?completedJobLookupTime={completedJobLookupTime}&limit={limit}'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -1121,7 +1121,7 @@ function GetAPIDetail ([String] $Request) {
             'Backup-CVSQLSubclient' = @{
         
                 Description = 'Backup SQL instance subclients'
-                Endpoint    = 'v2/sql/instances/{instanceId}/backup?subclient={subclientId}'
+                Endpoint    = 'v2/sql/instances/{instanceId}/backup?subClientId={subclientId}'
                 Method      = 'Post'
                 Body        = ''
             }
