@@ -735,6 +735,20 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             
             }
+
+            'Set-CVSubclient' = @{
+                Description = 'Add new subclient'
+                Endpoint    = 'Subclient'
+                Method      = 'Post'
+                Body        = ''
+            }
+
+            'Add-EntitytoSchedulePolicy' = @{
+                Description = 'Add entity to schedule policy'
+                Endpoint    = 'Task/{taskId}/Entity/Add'
+                Method      = 'Post'
+                Body        = ''
+            }
         
             'GetSubclientProperties' = @{
         
@@ -1256,7 +1270,7 @@ function GetAPIDetail ([String] $Request) {
             'Backup-CVVirtualMachine' = @{
         
                 Description = 'Starts backup job for specified virtual machine'
-                Endpoint    = '/v2/vsa/vm/{vmGUID}/backup'
+                Endpoint    = '/v2/vsa/vm/{vmGUID}/backup?backupLevel={backupType}'
                 Method      = 'Post'
                 Body        = ''
             }
