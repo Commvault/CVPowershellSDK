@@ -550,6 +550,9 @@ function Backup-CVVirtualMachine {
 .PARAMETER Protected
     Use this switch to filter legacy, unprotected virtual machines when specifed by Name.
 
+.PARAMETER BackupType
+    Backup Type for the backup of Virtual Machine , default is INCREMENTAL . Supported values are FULL, INCREMENTAL, DIFFERENTIAL, SYNTHETIC_FULL
+
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
@@ -558,6 +561,9 @@ function Backup-CVVirtualMachine {
 
 .EXAMPLE
     Backup-CVVirtualMachine -Name 2208 -ClientName V1-VSAQA
+
+.EXAMPLE
+    Backup-CVVirtualMachine -Id 500b0375-4728-588f-3d69-2d64b5291bcf -BackupType FULL
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -586,6 +592,9 @@ function Backup-CVVirtualMachine {
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [System.Object] $ClientObject,
+
+        [Parameter(Mandatory = $False)]
+        [CVBackupType] $BackupType = 'INCREMENTAL',
 
         [Switch] $Protected,
         [Switch] $Force
@@ -643,6 +652,7 @@ function Backup-CVVirtualMachine {
             }
 
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{vmGUID}', $vmObj.strGUID)
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{backupType}', [Convert]::ToString($BackupType))
 
             $headerObj = Get-CVRESTHeader $sessionObj
             $body = ''
