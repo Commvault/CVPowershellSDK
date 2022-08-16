@@ -658,7 +658,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVClient' = @{
         
                 Description = 'Get client list from CommServe'
-                Endpoint    = 'Client'
+                Endpoint    = 'Client?hiddenClients=true'
                 Method      = 'Get'
                 Body        = ''
             
