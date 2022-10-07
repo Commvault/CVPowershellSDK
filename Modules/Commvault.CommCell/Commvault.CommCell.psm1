@@ -655,7 +655,7 @@ function Set-CVSubclient {
 	    }
     }
     "@
-    PS C:\>$propobj = $req | ConvertFrom-Json
+    PS C:\>$propobj = $prop | ConvertFrom-Json
     PS C:\>Set-CVSubclient -body $propobj
 
 .OUTPUTS

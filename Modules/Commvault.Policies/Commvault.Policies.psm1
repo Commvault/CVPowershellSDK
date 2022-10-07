@@ -1075,34 +1075,9 @@ function Add-CVBlackoutWindow {
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
 .EXAMPLE
-    PS C:\>$props = @"
-    {
-        "operationWindow": {
-            "endDate": 1521691200,
-            "name": "Holiday_1",
-            "startDate": 1520485200,
-            "operations": [
-            1,
-            2
-            ],
-            "dayTime": [
-            {
-                "startTime": 46800,
-                "endTime": 50400,
-                "dayOfWeek": [
-                1,
-                2
-                ]
-            }
-            ]
-        },
-        "entity": {
-            "clientGroupId": 0,
-            "clientId": 2
-        }
-    }"@    
-    PS C:\>$propobj = $prop | ConvertFrom-Json
-    PS C:\>$propobj | Add-CVBlackoutWindow -Force
+    PS C:\>$props = Get-CVBlackoutWindow -Name 'My Blackout Rule'
+    PS C:\>$props.name='Your Blackout Rule'
+    PS C:\>$props | Add-CVBlackoutWindow -Force
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1136,7 +1111,7 @@ function Add-CVBlackoutWindow {
 
         try {
             $sessionObj.requestProps.endpoint = $endpointSave
-            if ($Force -or ($PSCmdlet.ShouldProcess($Properties.operationWindow.name))) {
+            if ($Force -or $PSCmdlet.ShouldProcess($Properties.name)) {
                 ProcessBlackoutWindowUpdate $sessionObj $Properties $False
             }
             else {
@@ -1378,9 +1353,7 @@ function ProcessBlackoutWindowUpdate([System.Object] $Session, [System.Object] $
     if (HasProperty $Properties 'dayTime') {
         $opWin.Add('dayTime', $Properties.dayTime)
     }
-    if (HasProperty $Properties "operationWindow"){
-        $opWin = $Properties.operationWindow
-    }
+
     $entity = $Properties.entity
     $body.Add('operationWindow', $opWin)
     $body.Add('entity', $entity)

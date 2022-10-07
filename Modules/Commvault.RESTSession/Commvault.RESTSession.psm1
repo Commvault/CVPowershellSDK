@@ -855,16 +855,7 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             
             }
-            
-            'Resubmit-CVJob' = @{
-        
-                Description = 'Resubmit the specified job'
-                Endpoint    = 'Job/{jobId}/action/resubmit'
-                Method      = 'Post'
-                Body        = ''
-            
-            }
-
+    
             'Resume-CVJob' = @{
         
                 Description = 'Resume the specified job'
@@ -1144,7 +1135,7 @@ function GetAPIDetail ([String] $Request) {
             'Backup-CVSQLSubclient' = @{
         
                 Description = 'Backup SQL instance subclients'
-                Endpoint    = 'v2/sql/instances/{instanceId}/backup?subclient={subclientId}'
+                Endpoint    = 'v2/sql/instances/{instanceId}/backup?subClientId={subclientId}'
                 Method      = 'Post'
                 Body        = ''
             }
