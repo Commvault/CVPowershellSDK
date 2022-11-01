@@ -954,7 +954,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVStoragePolicy' = @{
         
                 Description = 'Get storage policies'
-                Endpoint    = 'StoragePolicy'
+                Endpoint    = 'V2/StoragePolicy'
                 Method      = 'Get'
                 Body        = ''
             }

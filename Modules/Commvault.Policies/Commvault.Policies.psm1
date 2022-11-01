@@ -628,7 +628,7 @@ function Get-CVStoragePolicy {
                 else {
                     foreach ($policy in $response.Content.policies) {
                         if (-not [String]::IsNullOrEmpty($Name)) {
-                            if ($Name -eq $policy.storagePolicyName) {
+                            if ($Name -eq $policy.storagePolicy.storagePolicyName) {
                                 $policiesToProcess += $policy
                             }
                         }
@@ -645,7 +645,7 @@ function Get-CVStoragePolicy {
                             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{storagePolicyId}', $policy.storagePolicyAndCopy.storagePolicyId)
                         }
                         else {
-                            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{storagePolicyId}', $policy.storagePolicyId)
+                            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{storagePolicyId}', $policy.storagePolicy.storagePolicyId)
                         }
 
                         $headerObj = Get-CVRESTHeader $sessionObj
