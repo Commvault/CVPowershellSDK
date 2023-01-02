@@ -199,7 +199,9 @@ function Get-CVJob {
                         $subclientId = $subclientObj.subclientId 
                     } 
                 }
-    
+                
+                $sessionObj.requestProps.endpoint += "&hideAdminjobs=false"
+
                 if (-not [String]::IsNullOrEmpty($JobFilter)) {
                     $sessionObj.requestProps.endpoint += '&jobFilter=' + $JobFilter
                 }
