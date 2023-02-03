@@ -69,7 +69,7 @@ PowerShellVersion = '5.1'
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Connect-CVServer', 'Disconnect-CVServer', 'Get-CVSessionDetail', 'Get-CVRESTHeader', 'Submit-CVRESTRequest', 'Get-CVCommCellGlobals')
+FunctionsToExport = @('Connect-CVServer', 'Disconnect-CVServer', 'Get-CVSessionDetail', 'Get-CVRESTHeader', 'Submit-CVRESTRequest', 'Get-CVCommCellGlobals', 'Connect-CVServerWithAccessToken')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()
