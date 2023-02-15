@@ -1444,6 +1444,13 @@ function GetAPIDetail ([String] $Request) {
                 Method      = 'Delete'
                 Body        = ''
             }
+
+            'Update-CVSubclient' = @{
+                Description = 'This operation Updates a subclient'
+                Endpoint    = 'Subclient/{subClientId}'
+                Method      = 'Post'
+                Body        = ''
+            }
         }
     }
     catch {

@@ -631,6 +631,117 @@ function Add-EntitytoSchedulePolicy {
     }
 }
 
+function Update-CVSubclient
+{
+<#
+.SYNOPSIS
+    Method to update an existing subclient.
+
+.DESCRIPTION
+    Method to update an existing subclient.
+
+.PARAMETER SubclientId
+    Id of the subclient whose properties has to be updated
+
+.PARAMETER Body
+    Request body for the subclient creation : Refer to https://documentation.commvault.com/2023/essential/49184_rest_api_post_subclient_properties.html
+
+.EXAMPLE
+    PS C:\>$req =  @"
+    {
+	    "subClientProperties": {
+             "content": [
+                {
+                    "path": "C:\\Users\\Administrator\\Downloads"
+                },
+                {
+                    "path": "C:\\Users\\Administrator\\Desktop"
+                }
+            ],
+	    },
+        "association": {
+        "entity": [
+            {
+                "subclientId": 309,
+                "clientId": 2,
+                "applicationId": 33,
+                "backupsetId": 3,
+                "instanceId": 1,
+                "subclientName": "largetestthrottle",
+                "backupsetName": "defaultBackupSet"
+            }
+        ]
+        }
+    }
+    "@
+    PS C:\>$propobj = $req | ConvertFrom-Json
+    PS C:\>Update-CVSubclient -SubclientId 309 -body $propobj
+
+    Output : 
+    processinginstructioninfo     response
+    -------------------------     --------
+    @{attributes=System.Object[]} {@{warningCode=0; errorCode=0; warningMessage=}}
+.OUTPUTS
+    Outputs [PSCustomObject]
+
+.NOTES
+    Author: Jnanesh D
+    Company: Commvault
+#>   
+    [CmdletBinding(DefaultParameterSetName = 'Default',SupportsShouldProcess)]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('RequestBody')]
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullorEmpty()]
+        [PSObject] $Body,
+
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [Int64] $subClientId,
+
+        [Switch] $Force
+    )
+
+     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+        process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{subClientId}', $subClientId)
+            $body = ($Body | ConvertTo-Json -Depth 10)
+            $payload = @{ }
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+
+            if ($Force -or $PSCmdlet.ShouldProcess($Body)) {
+                $response = Submit-CVRESTRequest $payload 
+            }
+            else {
+                $response = Submit-CVRESTRequest $payload -DryRun
+            }
+            Write-Output $response.Content
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+
+}
+
 function Set-CVSubclient {
 <#
 .SYNOPSIS
