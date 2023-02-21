@@ -42,6 +42,9 @@ Login to Commcell:
 
 Sample Package Function Table
 -----------------------------
+- Function: Disable-CVClientActivity                           in Module: Commvault.CommCell
+- Function: Enable-CVClientActivity                            in Module: Commvault.CommCell
+=======
 Available From V11 SP20:
 - Function: Get-CVBlackoutWindow                               in Module: Commvault.Policies
 - Function: Set-CVBlackoutWindow                               in Module: Commvault.Policies
@@ -53,9 +56,12 @@ Available From V11 SP20:
 Available From V11 SP16:
 - Function: Get-CVClient                                       in Module: Commvault.CommCell
 - Function: Get-CVClientGroup                                  in Module: Commvault.CommCell
+- Function: Get-CVClientLicense                                in Module: Commvault.CommCell
 - Function: Get-CVVersionInfo                                  in Module: Commvault.CommCell
 - Function: Get-CVAlert                                        in Module: Commvault.CommCell
 - Function: Get-CVSubclient                                    in Module: Commvault.CommCell
+- Function: Revoke-CVClientLicense                             in Module: Commvault.CommCell
+=======
 - Function: Get-CVId                                           in Module: Commvault.CommCell
 - Function: Set-CVClient                                       in Module: Commvault.CommCell
 - Function: Set-CVClientGroup                                  in Module: Commvault.CommCell
