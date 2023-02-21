@@ -776,6 +776,189 @@ function Get-CVClientGroup {
     }
 }
 
+function Add-EntitytoSchedulePolicy {
+<#
+.SYNOPSIS
+    Method to add an entity to a schedule policy
+
+.DESCRIPTION
+    Method to add an entity to a schedule policy
+
+.LINK
+    https://documentation.commvault.com/11.24/essential/48824_rest_api_post_schedule_policy_add_entity.html
+
+.PARAMETER taskId
+    Schedule policy ID
+
+.OUTPUTS
+    Outputs [PSCustomObject]
+
+.EXAMPLE
+    PS C:\>$body = "subclientId=300"
+    PS C:\>$policy = Get-CVSchedulePolicy -Name testpolicy
+    PS C:\>$policy | Add-EntitytoSchedulePolicy -Body $body -Forc
+
+    Output:
+    errorMessage errorCode
+    ------------ ---------
+                         0
+.NOTES
+    Author: Jnanesh D
+    Company: Commvault
+#>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [OutputType([PSCustomObject])]
+    param(
+        
+        [Parameter(Mandatory= $True, ParameterSetName="ByObject", ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [System.Object] $taskObject,
+
+        [Alias('RequestBody')]
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullorEmpty()]
+        [PSObject] $Body,
+
+        [Switch] $Force,
+        
+        # Parameter help description
+        [Parameter(Mandatory= $True, ParameterSetName="ById")]
+        [ValidateNotNullorEmpty()]
+        [Int64] $taskId
+
+    )
+    begin{
+        Write-Debug -Message "$($MyInvocation.MyCommand): process"
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            if ($PSCmdlet.ParameterSetName -eq "ById"){
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{taskId}', $taskId)
+            }
+            else {
+                $taskId = $taskObject.task.taskId
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{taskId}', $taskId)
+            }
+            
+            $body = $Body
+            $payload = @{ }
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'errorMessage'
+
+            if ($Force) {
+                $response = Submit-CVRESTRequest $payload $validate
+                Write-Output $response.Content
+            }
+            else {
+                $response = Submit-CVRESTRequest $payload $validate -DryRun
+            }
+            
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
+
+function Set-CVSubclient {
+<#
+.SYNOPSIS
+    Method to create a new subclient.
+
+.DESCRIPTION
+    Method to create a new subclient.
+
+.PARAMETER Body
+    Request body for the subclient creation : Refer to https://documentation.commvault.com/11.24/essential/49174_rest_api_post_subclient.html.
+
+.EXAMPLE
+    PS C:\>$req =  @"
+    {
+	    "subClientProperties": {
+		    "subClientEntity": {
+			    "clientName": "Side1",
+			    "appName": "File System",
+			    "backupsetName": "DefaultBackupset",
+			    "subclientName": "subclient001"
+		    }
+	    }
+    }
+    "@
+    PS C:\>$propobj = $req | ConvertFrom-Json
+    PS C:\>Set-CVSubclient -body $propobj
+
+.OUTPUTS
+    Outputs [PSCustomObject]
+
+.NOTES
+    Author: Jnanesh D
+    Company: Commvault
+#>   
+    [CmdletBinding(DefaultParameterSetName = 'Default',SupportsShouldProcess)]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('RequestBody')]
+        [Parameter(Mandatory = $True)]
+        [ValidateNotNullorEmpty()]
+        [PSObject] $Body,
+
+        [Switch] $Force
+    )
+
+     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+        process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            $body = ($Body | ConvertTo-Json -Depth 10)
+            $payload = @{ }
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+            $validate = 'errorMessage'
+
+            if ($Force -or $PSCmdlet.ShouldProcess($Body)) {
+                $response = Submit-CVRESTRequest $payload $validate
+            }
+            else {
+                $response = Submit-CVRESTRequest $payload $validate -DryRun
+            }
+            Write-Output $response.Content
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+
+}
+
 
 function Get-CVSubclient {
 <#
@@ -859,7 +1042,7 @@ function Get-CVSubclient {
             $sessionObj.requestProps.endpoint = $endpointSave
 
             if ($PSCmdlet.ParameterSetName -eq 'ByClientName') {
-                $clientObj = Get-CVClient -Name $ClientName
+                $clientObj = Get-CVId -ClientName $ClientName
                 if ($null -ne $clientObj) { 
                     $ClientObject = $clientObj
                 }
@@ -958,6 +1141,168 @@ function Get-CVSubclient {
         catch {
             throw $_
         }
+    }
+}
+
+function Get-CVId {
+    <#
+    .SYNOPSIS
+        Method to retrieve the Id for a given Entity from the CommServe.
+    
+    .DESCRIPTION
+        Method to retrieve the Id for a given Entity from the CommServe.
+        
+    .PARAMETER ClientName
+        Get Client Id for ClientName.
+
+    .PARAMETER AgentName
+        Get Application Id for AgentName. Example 'File System', 'Active Directory Agent'
+
+    .PARAMETER BackupSetName
+        Get BackupSet Id for BackupSetName.
+
+    .PARAMETER InstanceName
+        Get Instance Id for InstanceName.
+
+    .PARAMETER SubclientName
+        Get Subclient Id for SubclientName.
+
+    .EXAMPLE
+        Get-CVId -ClientName 'YashClient'
+
+    .EXAMPLE
+        Get-CVId -ClientName 'YashClient' -AgentName 'File System'
+
+    .EXAMPLE
+        Get-CVId -ClientName 'YashClient' -AgentName 'File System'  -BackupSetName 'defaultBackupSet'
+
+    .EXAMPLE
+        Get-CVId -ClientName 'YashClient' -AgentName 'File System'  -InstanceName 'DefaultInstanceName'
+
+    .EXAMPLE
+        Get-CVId -ClientName 'YashClient' -AgentName 'File System'  -BackupSetName 'defaultBackupSet' -SubclientName 'default'
+
+    .LINK
+        All Agent Names: https://documentation.commvault.com/commvault/v11/article?p=45467.htm#o99081
+
+    .OUTPUTS
+        Outputs [PSCustomObject] Id of the specified client
+    
+    .NOTES
+        Author: Commvault
+        Company: Commvault
+    #>
+        [CmdletBinding()]
+        [OutputType([PSCustomObject])]
+        param(
+            [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+            [ValidateNotNullorEmpty()]
+            [String] $ClientName,
+
+            [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+            [ValidateNotNullorEmpty()]
+            [String] $AgentName,
+
+            [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+            [ValidateNotNullorEmpty()]
+            [String] $BackupSetName,
+
+            [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+            [ValidateNotNullorEmpty()]
+            [String] $InstanceName,
+
+            [Parameter(Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+            [ValidateNotNullorEmpty()]
+            [String] $SubclientName
+        )
+    
+        begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+    
+            try {
+                $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+                $endpointSave = $sessionObj.requestProps.endpoint
+            }
+            catch {
+                throw $_
+            }
+        }
+    
+        process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+    
+            try {
+                $sessionObj.requestProps.endpoint = $endpointSave
+                $ClientName = [System.Web.HTTPUtility]::UrlEncode($ClientName)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientName}', $ClientName)
+
+                if (-not [String]::IsNullOrEmpty($AgentName)) {
+                    $AgentName = [System.Web.HTTPUtility]::UrlEncode($AgentName)
+                    $sessionObj.requestProps.endpoint += '&agent=' + $AgentName
+                }
+
+                if (-not [String]::IsNullOrEmpty($BackupSetName)) {
+                    $BackupSetName = [System.Web.HTTPUtility]::UrlEncode($BackupSetName)
+                    if ([String]::IsNullOrEmpty($AgentName)) {
+                        $AgentName = Read-Host 'AgentName'
+                        $AgentName = [System.Web.HTTPUtility]::UrlEncode($AgentName)
+                        $sessionObj.requestProps.endpoint += '&agent=' + $AgentName
+                    }
+                    $sessionObj.requestProps.endpoint += '&backupset=' + $BackupSetName
+                }
+
+                if (-not [String]::IsNullOrEmpty($InstanceName)) {
+                    $InstanceName = [System.Web.HTTPUtility]::UrlEncode($InstanceName)
+                    if ([String]::IsNullOrEmpty($AgentName)) {
+                        $AgentName = Read-Host 'AgentName'
+                        $AgentName = [System.Web.HTTPUtility]::UrlEncode($AgentName)
+                        $sessionObj.requestProps.endpoint += '&agent=' + $AgentName
+                    }
+                    $sessionObj.requestProps.endpoint += '&instanceName=' + $InstanceName
+                }
+
+                if (-not [String]::IsNullOrEmpty($SubclientName)) {
+                    $SubclientName = [System.Web.HTTPUtility]::UrlEncode($SubclientName)
+                    if ([String]::IsNullOrEmpty($AgentName)) {
+                        $AgentName = Read-Host 'AgentName'
+                        $AgentName = [System.Web.HTTPUtility]::UrlEncode($AgentName)
+                        $sessionObj.requestProps.endpoint += '&agent=' + $AgentName
+                    }
+                    if ([String]::IsNullOrEmpty($BackupSetName)) {
+                        $BackupSetName = Read-Host 'BackupSetName'
+                        $BackupSetName = [System.Web.HTTPUtility]::UrlEncode($BackupSetName)
+                        $sessionObj.requestProps.endpoint += '&backupset=' + $BackupSetName
+                    }
+                    $sessionObj.requestProps.endpoint += '&subclient=' + $SubclientName
+                }
+
+                Write-Debug $sessionObj.requestProps.endpoint
+
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $body = ''
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = $null
+    
+                $response = Submit-CVRESTRequest $payload $validate
+        
+                if ($response.IsValid) {
+                    if ($response.Content.clientId -eq -32000) {
+                        Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$ClientName]"
+                    }
+                    else {
+                        Write-Output $response.Content
+                    }
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): unable to retrieve Id for the Client"
+                }
+            }
+            catch {
+                throw $_
+            }
+        }
+    
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
     }
 }
 
@@ -1105,14 +1450,14 @@ function Set-CVClient {
     $clientProps = Get-CVClient -Name 'carbonwincs1' -AllProperties
     PS C:\>$clientProps.client.displayName='carbonwincs1-1'
     PS C:\>$clientProps.client.clientDescription = 'carbonwincs1-1 description modified with REST API Post request'
-    PS C:\>$clientProps.client | Set-CVClient -Name 'carbonwincs1' -Force
+    PS C:\>$clientProps | Set-CVClient -Name 'carbonwincs1' -Force
 
 .EXAMPLE
     $clientId = (Get-CVVirtualMachine -Name INSIELVM-92-pl).client.clientId
     PS C:\>$clientProps = Get-CVClient -Id $clientId -AllProperties
     PS C:\>$clientProps.client.displayName='INSIELVM-92-pl'
     PS C:\>$clientProps.client.clientDescription = 'INSIELVM-92-pl description modified with REST API Post request'
-    PS C:\>$clientProps.client | Set-CVClient -Id $clientId
+    PS C:\>$clientProps | Set-CVClient -Id $clientId
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1187,8 +1532,8 @@ function Set-CVClient {
                 }
             }
             #>
-            $client = @{}
-            $client.Add('client', $Properties)
+            #$client = @{}
+            #$client.Add('client', $Properties)
             #$entity = @{}
             #$entity.Add('clientName', $clientObj.clientName)
             #[System.Collections.ArrayList] $entity_arr = @()
@@ -1197,7 +1542,7 @@ function Set-CVClient {
             #$association.Add('entity', $entity_arr)
     
             $body = @{}
-            $body.Add('clientProperties', $client)
+            $body.Add('clientProperties', $Properties)
             #$body.Add('association', $association)
             $body = ($body | ConvertTo-Json -Depth 10)
 

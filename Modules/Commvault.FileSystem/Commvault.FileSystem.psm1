@@ -225,7 +225,7 @@ function Search-CVClientFileSystem {
         [String] $BackupSetId,
         
         [Parameter(Mandatory = $False)]
-        [CVCopyPrecedence] $CopyPrecedence = 'Primary',
+        [Int32] $CopyPrecedence,
         
         [Parameter(Mandatory = $False)]
         [ValidateNotNullorEmpty()]
@@ -358,7 +358,7 @@ function Search-CVClientFileSystem {
             if ($null -ne $subclientObj) { $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{subclientId}', $subclientObj.subclientId) }
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{path}', $Path)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{backupsetId}', $BackupSetId)
-            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{copyPrecedence}', $CopyPrecedence.value__)
+            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{copyPrecedence}', $CopyPrecedence)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{jobId}', $JobId)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{proxy}', $Proxy)
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{ma}', $MediaAgent)

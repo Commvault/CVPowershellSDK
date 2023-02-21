@@ -45,12 +45,6 @@ enum CVBackupType {
     Synthetic_Full = 4
 }
 
-enum CVCopyPrecedence {
-    Primary = 1
-    Secondary = 2
-    Cloud = 3
-}
-
 enum CVSQLBackupType {
     full = 1
     incremental = 2

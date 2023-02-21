@@ -269,9 +269,25 @@ function Get-CVSessionDetail {
 
 #Method takes session object and returns the filled header
 function Get-CVRESTHeader {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     [OutputType([HashTable])]
-    param ([HashTable] $SessionObject, [String] $PagingInfo)
+    param (
+        [Parameter(Position = 0, Mandatory = $True)]
+        [ValidateNotNullorEmpty()]
+        [HashTable] $SessionObject,
+
+        [Parameter(Mandatory = $False, ParameterSetName = 'ByPagingInfo')]
+        [ValidateNotNullorEmpty()]
+        [String] $PagingInfo,
+
+        [Parameter(Mandatory = $False, ParameterSetName = 'ByLimit')]
+        [ValidateNotNullorEmpty()]
+        [uint64] $Limit,
+
+        [Parameter(Mandatory = $False, ParameterSetName = 'ByLimit')]
+        [ValidateNotNullorEmpty()]
+        [uint64] $Offset
+    )
 
     begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
 
@@ -286,7 +302,8 @@ function Get-CVRESTHeader {
     process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
 
         try {
-            if ($null -eq $PagingInfo -or $PagingInfo.Length -eq 0) { # TR - 190508-795
+            
+            if ($PSCmdlet.ParameterSetName -eq 'Default') {
                 if ($SessionObject.requestProps.ContainsKey('ContentType')) {
                     $output.Add("header", @{Accept = $SessionObject.requestProps.ContentType; Authtoken = $SessionObject.sessionToken })
                 }
@@ -294,10 +311,23 @@ function Get-CVRESTHeader {
                     $output.Add("header", @{Accept = 'application/json'; Authtoken = $SessionObject.sessionToken })
                 }
             }
-            else {
-                $output.Add("header", @{Accept = 'application/json'; Authtoken = $SessionObject.sessionToken; pagingInfo = $PagingInfo })
+            elseif ($PSCmdlet.ParameterSetName -eq 'ByPagingInfo') { # paging support with pagingInfo header '{startPage},{pageSize}'
+                if ($SessionObject.requestProps.ContainsKey('ContentType')) {
+                    $output.Add("header", @{Accept = $SessionObject.requestProps.ContentType; Authtoken = $SessionObject.sessionToken; pagingInfo = $PagingInfo })
+                }
+                else {
+                    $output.Add("header", @{Accept = 'application/json'; Authtoken = $SessionObject.sessionToken; pagingInfo = $PagingInfo })
+                }
             }
-
+            elseif ($PSCmdlet.ParameterSetName -eq 'ByLimit') { # paging support with limit/offset header combo
+                if ($SessionObject.requestProps.ContainsKey('ContentType')) {
+                    $output.Add("header", @{Accept = $SessionObject.requestProps.ContentType; Authtoken = $SessionObject.sessionToken; limit = $Limit; offset = $Offset })
+                }
+                else {
+                    $output.Add("header", @{Accept = 'application/json'; Authtoken = $SessionObject.sessionToken; limit = $Limit; offset = $Offset })
+                }
+            }
+            
             if ($SessionObject.requestProps.ContainsKey('ContentType')) {
                 $output.Add("ContentType", $SessionObject.requestProps.ContentType)
             }
@@ -628,7 +658,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVClient' = @{
         
                 Description = 'Get client list from CommServe'
-                Endpoint    = 'Client'
+                Endpoint    = 'Client?hiddenClients=true'
                 Method      = 'Get'
                 Body        = ''
             
@@ -741,11 +771,34 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             
             }
+
+            'Set-CVSubclient' = @{
+                Description = 'Add new subclient'
+                Endpoint    = 'Subclient'
+                Method      = 'Post'
+                Body        = ''
+            }
+
+            'Add-EntitytoSchedulePolicy' = @{
+                Description = 'Add entity to schedule policy'
+                Endpoint    = 'Task/{taskId}/Entity/Add'
+                Method      = 'Post'
+                Body        = ''
+            }
         
             'GetSubclientProperties' = @{
         
                 Description = 'Get subclient props for given subclient from CommServe'
                 Endpoint    = 'Subclient/{subclientId}'
+                Method      = 'Get'
+                Body        = ''
+            
+            }
+
+            'Get-CVId' = @{
+        
+                Description = 'Gets Id of a given entity'
+                Endpoint    = 'GetId?clientName={clientName}'
                 Method      = 'Get'
                 Body        = ''
             
@@ -799,7 +852,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVJob' = @{
         
                 Description = 'Get the list of all jobs in CommServe'
-                Endpoint    = 'Job?completedJobLookupTime={completedJobLookupTime}'
+                Endpoint    = 'Job?completedJobLookupTime={completedJobLookupTime}&limit={limit}'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -838,7 +891,16 @@ function GetAPIDetail ([String] $Request) {
                 Body        = ''
             
             }
-    
+            
+            'Resubmit-CVJob' = @{
+        
+                Description = 'Resubmit the specified job'
+                Endpoint    = 'Job/{jobId}/action/resubmit'
+                Method      = 'Post'
+                Body        = ''
+            
+            }
+
             'Resume-CVJob' = @{
         
                 Description = 'Resume the specified job'
@@ -928,7 +990,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVStoragePolicy' = @{
         
                 Description = 'Get storage policies'
-                Endpoint    = 'StoragePolicy'
+                Endpoint    = 'V2/StoragePolicy'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -960,7 +1022,7 @@ function GetAPIDetail ([String] $Request) {
             
             'Set-CVBlackoutWindow' = @{
         
-                Description = 'This operation updates an operation rule'
+                Description = 'Update an existing blackwout window rule'
                 Endpoint    = 'OperationWindow'
                 Method      = 'Put'
                 Body        = ''
@@ -968,7 +1030,7 @@ function GetAPIDetail ([String] $Request) {
             
             'Add-CVBlackoutWindow' = @{
         
-                Description = 'This operation creates an operation rule'
+                Description = 'Create a new blackwout window rule'
                 Endpoint    = 'OperationWindow'
                 Method      = 'Post'
                 Body        = ''
@@ -976,24 +1038,24 @@ function GetAPIDetail ([String] $Request) {
             
             'Remove-CVBlackoutWindow' = @{
         
-                Description = 'This operation deletes a blackout rule from the CommServe'
+                Description = 'Delete an existing blackwout window rule'
                 Endpoint    = 'OperationWindow/{ruleId}'
                 Method      = 'Delete'
                 Body        = ''
             }
 
-            'Enable-CVIgnoreHigherLevelBlackoutWindowRules' = @{
+            'Enable-CVBlackoutWindowIgnoreHigherLevelRules' = @{
         
                 Description = 'Enable ignore higher-level blackout window rules feature'
-                Endpoint    = 'OperationWindow/Ignore/Action/Enable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
+                Endpoint    = 'OperationWindow/IgnoreHigherLevelRules/Action/Enable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
                 Method      = 'Put'
                 Body        = ''
             }
             
-            'Disable-CVIgnoreHigherLevelBlackoutWindowRules' = @{
+            'Disable-CVBlackoutWindowIgnoreHigherLevelRules' = @{
         
                 Description = 'Disable ignore higher-level blackout window rules feature'
-                Endpoint    = 'OperationWindow/Ignore/Action/Disable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
+                Endpoint    = 'OperationWindow/IgnoreHigherLevelRules/Action/Disable?&clientId={clientId}&appTypeId={appTypeId}&instanceId={instanceId}&backupsetId={backupsetId}&subclientId={subclientId}'
                 Method      = 'Put'
                 Body        = ''
             }
@@ -1023,7 +1085,6 @@ function GetAPIDetail ([String] $Request) {
         
                 Description = 'Get information about SQL clones'
                 Endpoint    = 'sql/clones?client={clientId}&instance={instanceId}'
-                #Endpoint    = 'sql/clones?client={clientId}&instance={instanceId}&propertyLevel={propertyLevel}&search_term={searchTerm}&cloneName={cloneName}&sourceInstance={sourceInstance}&destinationInstance={destinationInstance}&sourceDB={sourceDatabase}&sort={sort}&offset={offset}&limit={limit}'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -1064,16 +1125,14 @@ function GetAPIDetail ([String] $Request) {
         
                 Description = 'Get backup history for a specific SQL database'
                 Endpoint    = 'sql/instance/{instanceId}/database/{databaseId}/history/backup'
-                #Endpoint    = 'sql/instance/{instanceId}/database/{databaseId}/history/backup?latest={latest}&from={fromTime}&to={toTime}'
                 Method      = 'Get'
                 Body        = ''
             }
     
-            'Get-CVSQLDatabaseBackupJob' = @{
+            'GetSQLDatabaseJobDetail' = @{
         
                 Description = 'Get SQL database backup job details for a specific instance/database/job'
                 Endpoint    = 'v2/sql/instances/{instanceId}/databases/{databaseId}/jobs/{jobId}'
-                #Endpoint    = 'sql/instance/{instanceId}/database/{databaseId}/history/backup/{jobId}'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -1098,16 +1157,14 @@ function GetAPIDetail ([String] $Request) {
         
                 Description = 'Get backup history for a specific SQL instance'
                 EndPoint    = 'sql/instance/{instanceId}/history/backup'
-                #EndPoint    = 'sql/instance/{instanceId}/history/backup?latest={latest}&from={fromTime}&to={toTime}'
                 Method      = 'Get'
                 Body        = ''
             }
     
-            'Get-CVSQLInstanceBackupJob' = @{
+            'GetSQLInstanceJobDetail' = @{
         
                 Description = 'Get SQL instance backup job details for a specific instance/job'
                 Endpoint    = 'v2/sql/instances/{instanceId}/jobs/{jobId}'
-                #Endpoint    = 'sql/instance/{instanceId}/history/backup/{jobId}'
                 Method      = 'Get'
                 Body        = ''
             }
@@ -1258,7 +1315,7 @@ function GetAPIDetail ([String] $Request) {
             'Backup-CVVirtualMachine' = @{
         
                 Description = 'Starts backup job for specified virtual machine'
-                Endpoint    = '/v2/vsa/vm/{vmGUID}/backup'
+                Endpoint    = '/v2/vsa/vm/{vmGUID}/backup?backupLevel={backupType}'
                 Method      = 'Post'
                 Body        = ''
             }

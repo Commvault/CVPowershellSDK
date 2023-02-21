@@ -1067,7 +1067,7 @@ function Get-CVSQLDatabaseBackupHistory {
                     $custom | Add-Member -NotePropertyName 'JobId' -NotePropertyValue $backup.jobId
 
                     if ($JobDetail) {
-                        $sessionObj = Get-CVSessionDetail 'Get-CVSQLDatabaseBackupJob'
+                        $sessionObj = Get-CVSessionDetail 'GetSQLDatabaseJobDetail'
                         $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $backup.insId)
                         $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $backup.dbId)
                         $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{jobId}', $backup.jobId)
@@ -1414,6 +1414,12 @@ function Restore-CVSQLDatabase {
 .PARAMETER DatabaseObject
     Specify the database files to be restored by piping DatabaseObject.
 
+.PARAMETER PointInTime
+    Specify the database files to be restored by PointInTime.
+
+.PARAMETER CopyPrecedence
+    Specify the database files to be restored by the CopyPrecedence applicable to your environment.
+
 .PARAMETER DestClientName
     Restore out-of-place the SQL database files to DestClientName.
 
@@ -1464,6 +1470,13 @@ function Restore-CVSQLDatabase {
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [System.Object] $DatabaseObject,
+
+        [Parameter(Mandatory = $False)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $PointInTime,
+
+        [Parameter(Mandatory = $False)]   
+        [Int32] $CopyPrecedence,
 
         [Switch] $OutofPlace,
         [Switch] $OverwriteExisting,
@@ -1550,7 +1563,11 @@ function Restore-CVSQLDatabase {
             $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
 
             $body = @{}
+            if ($PointInTime -gt 0) {
+                $body.Add('pointInTimeValue', $PointInTime)
+            }
             $body.Add('overwriteFiles', $OverwriteExisting.IsPresent)
+            $body.Add('copyPrecedence', $CopyPrecedence)
 
             $destEntity = @{}
             if ($OutofPlace) {
@@ -2229,7 +2246,7 @@ function Get-CVSQLInstanceBackupHistory {
                     $custom | Add-Member -NotePropertyName 'JobId' -NotePropertyValue $job.jobId
                 
                     if ($JobDetail -and $job.noDBs -gt 0) {
-                        $sessionObj = Get-CVSessionDetail 'Get-CVSQLInstanceBackupJob'
+                        $sessionObj = Get-CVSessionDetail 'GetSQLInstanceJobDetail'
                         $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $job.insId)
                         $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{jobId}', $job.jobId)
 

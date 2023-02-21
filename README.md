@@ -44,6 +44,16 @@ Sample Package Function Table
 -----------------------------
 - Function: Disable-CVClientActivity                           in Module: Commvault.CommCell
 - Function: Enable-CVClientActivity                            in Module: Commvault.CommCell
+=======
+Available From V11 SP20:
+- Function: Get-CVBlackoutWindow                               in Module: Commvault.Policies
+- Function: Set-CVBlackoutWindow                               in Module: Commvault.Policies
+- Function: Enable-CVBlackoutWindowIgnoreHigherLevelRules      in Module: Commvault.Policies
+- Function: Disable-CVBlackoutWindowIgnoreHigherLevelRules     in Module: Commvault.Policies
+- Function: Add-CVBlackoutWindow                               in Module: Commvault.Policies
+- Function: Remove-CVBlackoutWindow                            in Module: Commvault.Policies
+
+Available From V11 SP16:
 - Function: Get-CVClient                                       in Module: Commvault.CommCell
 - Function: Get-CVClientGroup                                  in Module: Commvault.CommCell
 - Function: Get-CVClientLicense                                in Module: Commvault.CommCell
@@ -51,6 +61,8 @@ Sample Package Function Table
 - Function: Get-CVAlert                                        in Module: Commvault.CommCell
 - Function: Get-CVSubclient                                    in Module: Commvault.CommCell
 - Function: Revoke-CVClientLicense                             in Module: Commvault.CommCell
+=======
+- Function: Get-CVId                                           in Module: Commvault.CommCell
 - Function: Set-CVClient                                       in Module: Commvault.CommCell
 - Function: Set-CVClientGroup                                  in Module: Commvault.CommCell
 - Function: Backup-CVClientFileSystem                          in Module: Commvault.FileSystem
@@ -72,6 +84,7 @@ Sample Package Function Table
 - Function: Get-CVSchedulePolicy                               in Module: Commvault.Policies
 - Function: Disable-CVSchedulePolicy                           in Module: Commvault.Policies
 - Function: Connect-CVServer                                   in Module: Commvault.RESTSession
+- Function: Disconnect-CVServer                                in Module: Commvault.RESTSession
 - Function: Submit-CVRESTRequest                               in Module: Commvault.RESTSession
 - Function: Get-CVRESTHeader                                   in Module: Commvault.RESTSession
 - Function: Get-CVCommCellGlobals                              in Module: Commvault.RESTSession
@@ -97,14 +110,16 @@ Sample Package Function Table
 - Function: Get-CVMediaAgent                                   in Module: Commvault.StorageResources
 - Function: Get-CVVirtualMachine                               in Module: Commvault.VirtualServer
 - Function: Add-CVVirtualMachine                               in Module: Commvault.VirtualServer
+- Function: Add-CVVirtualMachineGroupContent                   in Module: Commvault.VirtualServer
 - Function: Dismount-CVVirtualMachine                          in Module: Commvault.VirtualServer
 - Function: Restore-CVVirtualMachine                           in Module: Commvault.VirtualServer
 - Function: Mount-CVVirtualMachine                             in Module: Commvault.VirtualServer
 - Function: Remove-CVVirtualMachine                            in Module: Commvault.VirtualServer
-- Function: Restore-CVVirtualMachineOutofPlace                 in Module: Commvault.VirtualServer
 - Function: Get-CVVirtualMachineLiveMount                      in Module: Commvault.VirtualServer
 - Function: Backup-CVVirtualMachine                            in Module: Commvault.VirtualServer
 - Function: Get-CVVirtualMachineBackupTime                     in Module: Commvault.VirtualServer
+- Function: Get-CVWorkflow                                     in Module: Commvault.Workflow
+- Function: Start-CVWorkflow                                   in Module: Commvault.Workflow
 
 Uninstallation
 --------------
