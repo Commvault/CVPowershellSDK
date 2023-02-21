@@ -18,6 +18,7 @@ function Get-CVJob {
 
 .DESCRIPTION
     Get the list of all jobs. Based on parameters this commandlet filters the output.
+    This method is implemented with Powershell paging support.
 
 .PARAMETER ClientName
     Filter output based on ClientName.
@@ -37,8 +38,32 @@ function Get-CVJob {
 .PARAMETER Details
     Retrieves the details for a job.
 
+.PARAMETER limit
+    The number of results to be listed in a page. Used for changing the paging limits. By default, the limit is 100 results per page.
+
+.PARAMETER First
+    Get list of jobs with paging support -First 20 (20 per page).
+
+.PARAMETER Skip
+    Get list of jobs with paging support -First 20 -Skip 5 (20 per page, skip first 5 jobs).
+
+.PARAMETER IncludeTotalCount
+    Include total count of result record set.
+
 .EXAMPLE
     Get-CVJob
+
+.EXAMPLE
+    Get-CVJob -CompletedTime 8 -IncludeTotalCount
+    
+.EXAMPLE
+    Get-CVJob -CompletedTime 72 -IncludeTotalCount -First 5    
+
+.EXAMPLE
+    Get-CVJob -CompletedTime 240 -IncludeTotalCount -First 10 -Skip 0    
+
+.EXAMPLE
+    Get-CVJob -CompletedTime 240 -IncludeTotalCount -First 10 -Skip 20
     
 .EXAMPLE
     Get-CVJob -Details
@@ -68,7 +93,7 @@ function Get-CVJob {
     Author: Gary Stoops
     Company: Commvault
 #>
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding(SupportsPaging = $True, DefaultParameterSetName = 'Default')]
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory = $False, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
@@ -95,6 +120,10 @@ function Get-CVJob {
         [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [Int32] $CompletedTime = 24, # default 24 hours
+
+        [Parameter(Mandatory = $False, ParameterSetName = 'Default')]
+        [ValidateNotNullorEmpty()]
+        [Int32] $limit = 100,
 
         [Switch] $Details
     )
@@ -150,9 +179,12 @@ function Get-CVJob {
             }
             else {
                 if (-not [String]::IsNullOrEmpty($ClientName)) {
-                    $clientObj = Get-CVClient -Client $ClientName
+                    $clientObj = Get-CVId -ClientName $ClientName
                     if ($null -ne $clientObj) { 
                         $sessionObj.requestProps.endpoint += '&clientId=' + $clientObj.clientId
+                    }
+                    else {
+                        return
                     }
                 }
     
@@ -167,7 +199,9 @@ function Get-CVJob {
                         $subclientId = $subclientObj.subclientId 
                     } 
                 }
-    
+                
+                $sessionObj.requestProps.endpoint += "&hideAdminjobs=false"
+
                 if (-not [String]::IsNullOrEmpty($JobFilter)) {
                     $sessionObj.requestProps.endpoint += '&jobFilter=' + $JobFilter
                 }
@@ -182,8 +216,26 @@ function Get-CVJob {
                 else {
                     $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{completedJobLookupTime}', $null)
                 }
+
+                if ($limit) {
+                    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{limit}', $limit)
+                }
+                else {
+                    $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{limit}', $null)
+                }
     
-                $headerObj = Get-CVRESTHeader $sessionObj
+                if ($PSCmdlet.PagingParameters.First -eq [Uint64]::MaxValue) { # MaxValue is system default
+                    if ($PSCmdlet.PagingParameters.IncludeTotalCount.IsPresent) {
+                        $headerObj = Get-CVRESTHeader $sessionObj -Limit 0 -Offset 0
+                    }
+                    else {
+                        $headerObj = Get-CVRESTHeader $sessionObj
+                    }
+                }
+                else {
+                    $headerObj = Get-CVRESTHeader $sessionObj -Limit $PSCmdlet.PagingParameters.First -Offset $PSCmdlet.PagingParameters.Skip
+                }
+
                 $body = ''
                 $payload = @{ }
                 $payload.Add('headerObject', $headerObj)
@@ -240,12 +292,16 @@ function Get-CVJob {
     }
 
     end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+        if ($PSCmdlet.PagingParameters.IncludeTotalCount) {
+            [double] $accuracy = 1.0
+            $PSCmdlet.PagingParameters.NewTotalCount($response.Content.totalRecordsWithoutPaging, $accuracy)
+        }
     }
 }
 
 
 function Get-CVJobDetail {
-<#
+    <#
 .SYNOPSIS
     Gets extended details for a job.
 
@@ -254,6 +310,9 @@ function Get-CVJobDetail {
 
 .PARAMETER Id
     Gets extended details for the job specified by Id.
+
+.PARAMETER InfoType
+	Gets additional job information.
 
 .PARAMETER JobObject
     Gets extended details for the job specified by piped JobObject.
@@ -276,6 +335,9 @@ function Get-CVJobDetail {
 .EXAMPLE
     Get-CVJobDetail -Id 175 | Select-Object -ExpandProperty progressInfo
 
+.EXAMPLE
+    Get-CVJobDetail -Id 175 InfoType 1
+
 .OUTPUTS
     Outputs [PSCustomObject] containing result.
 
@@ -292,45 +354,26 @@ function Get-CVJobDetail {
         [ValidateNotNullorEmpty()]
         [Int32] $Id,
 
+        [Parameter(Mandatory = $False, ParameterSetName = 'ById', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [ValidateNotNullorEmpty()]
+        [Int32] $InfoType,
+
         [Parameter(Mandatory = $True, ParameterSetName = 'ByObject', ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
         [ValidateNotNullorEmpty()]
         [System.Object] $JobObject
     )
 
-    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+    begin {
+        Write-Debug -Message "$($MyInvocation.MyCommand): begin"
 
         try {
-            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
-            $endpointSave = $sessionObj.requestProps.endpoint
-        }
-        catch {
-            throw $_
-        }
-    }
-
-    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
-
-        try {
-            $sessionObj.requestProps.endpoint = $endpointSave
-
-            $headerObj = Get-CVRESTHeader $sessionObj
-            $jobObj = @{ }
-            if ($PSCmdlet.ParameterSetName -eq 'ById') {
-                $jobObj.Add('jobId', $Id)
+            if ($InfoType -eq 0) {
+                $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+                $endpointSave = $sessionObj.requestProps.endpoint  
             }
             else {
-                $jobObj.Add('jobId', $JobObject.jobId)
-            }
-            $body = $jobObj | ConvertTo-Json -Depth 10
-            $payload = @{ }
-            $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
-            $validate = 'job'
-
-            $response = Submit-CVRESTRequest $payload $validate
-
-            if ($response.IsValid) {
-                Write-Output $response.Content.job.jobDetail
+                $sessionObj = Get-CVSessionDetail 'GetJobById'
+                $endpointSave = $sessionObj.requestProps.endpoint  
             }
         }
         catch {
@@ -338,7 +381,64 @@ function Get-CVJobDetail {
         }
     }
 
-    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    process {
+        Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            if ($InfoType -gt 0) {
+                if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                    $job_id = $Id
+                }
+                else {
+                    $job_id = $JobObject.jobId
+                }
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{jobId}', ($job_id))
+                $sessionObj.requestProps.endpoint = -join ($sessionObj.requestProps.endpoint, "/AdvancedDetails?infoType=", $InfoType)
+                $body = ''
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = ''
+
+                $response = Submit-CVRESTRequest $payload $validate
+
+                if ($response.IsValid) {
+                    Write-Output $response.Content
+                }
+            }
+            else {
+                $sessionObj.requestProps.endpoint = $endpointSave
+
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $jobObj = @{ }
+                if ($PSCmdlet.ParameterSetName -eq 'ById') {
+                    $jobObj.Add('jobId', $Id)
+                }
+                else {
+                    $jobObj.Add('jobId', $JobObject.jobId)
+                }
+                $body = $jobObj | ConvertTo-Json -Depth 10
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = 'job'
+    
+                $response = Submit-CVRESTRequest $payload $validate
+    
+                if ($response.IsValid) {
+                    Write-Output $response.Content.job.jobDetail
+                }
+            }
+
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end {
+        Write-Debug -Message "$($MyInvocation.MyCommand): end"
     }
 }
 
@@ -485,7 +585,75 @@ function Resume-CVJob {
     end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
     }
 }
-
+function Resubmit-CVJob {
+    <#
+    .SYNOPSIS
+        Resubmit the job specified by job Id.
+    
+    .DESCRIPTION
+        Resubmit the job specified by job Id. 
+    
+    .PARAMETER JobId
+        Resubmit the job specified by JobId.
+    
+    .EXAMPLE
+        Resubmit-CVJob -JobId 78
+        
+    .OUTPUTS
+        Outputs [PSCustomObject] containing result.
+    
+    .NOTES
+        Author: Jnanesh D
+        Company: Commvault
+    #>
+        [CmdletBinding()]
+        [OutputType([PSCustomObject])]
+        param(
+            [Parameter(Mandatory = $True)]
+            [ValidateNotNullorEmpty()]
+            [Int32] $JobId
+        )
+    
+        begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+    
+            try {
+                $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+                $endpointSave = $sessionObj.requestProps.endpoint
+            }
+            catch {
+                throw $_
+            }
+        }
+    
+        process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+    
+            try {
+                $sessionObj.requestProps.endpoint = $endpointSave
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{jobId}', $JobId)
+    
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $body = ''
+                $payload = @{ }
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                
+                $response = Submit-CVRESTRequest $payload 'jobIds'
+    
+                if ($response.IsValid) { 
+                    Write-Output $response.Content
+                }
+                else { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): resume request was not succesfully submitted for job [$JobId]"
+                }
+            }
+            catch {
+                throw $_
+            }
+        }
+    
+        end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+        }
+}
 
 function Stop-CVJob {
 <#
