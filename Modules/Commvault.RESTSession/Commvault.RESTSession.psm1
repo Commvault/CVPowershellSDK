@@ -12,6 +12,61 @@ using module 'Commvault.TypeDefinitions'
 Set-StrictMode -Version latest
 
 
+function Connect-CVServerWithAccessToken {
+<#
+.SYNOPSIS
+    Method to save the access token to connect to the server
+
+.DESCRIPTION
+    Use this method to save the access token and use it to run commands 
+
+.PARAMETER AccessToken
+    Access Token String
+
+.PARAMETER Server
+    WebConsole Endpoint of the CommServer.
+
+.PARAMETER Port
+    Optional Parameter to connect via webserver and Server input should be just FQDN/Hostname/IP of webserver. Default 81.
+
+.EXAMPLE 
+    Add-CVAccessToken -AccessToken ### -Server http://<hostname>/webconsole/api
+
+.EXAMPLE 
+    Add-CVAccessToken -AccessToken ### -Server <hostname>
+#>
+    Param(
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNull()]
+        [string] $AccessToken,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNull()]
+        [string] $Server,
+
+        [Parameter(Mandatory=$false)]
+        [Int32] $Port = 81
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+        try {
+            $global:CVConnectionPool = @{
+                server = $Server
+                token  = $AccessToken
+                port   = $Port
+                user =  $false
+                accesstoken_set = $true
+            }
+            $version = Get-CVVersionInfo
+            Write-Host $version
+        }
+        catch{
+        
+            $PSCmdlet.ThrowTerminatingError($_) 
+        }
+    }
+}
+
 function Connect-CVServer {
 <#
 .SYNOPSIS
@@ -498,13 +553,21 @@ function  PrepareBaseUrl ([String] $Server, [String] $Port) {
     
     try {
         #$prefix =  $REST_AUTH_URL_PREFIX_SECURE
-        $prefix = $REST_AUTH_URL_PREFIX
-        $url = $prefix + $REST_BASE_URL
-        
-        #Remove whitespace
-        $Server = $Server -split '\s+'
-        $Port = $Port -split '\s+'
-        Write-Output (($url.Replace("Server", $Server)).Replace("Port", $Port)).Replace(" ", "")
+        if ($server.ToLower().Contains("http"))
+        {
+            $server = $server + "/"
+            Write-Output $server
+        }
+        else{
+            $prefix = $REST_AUTH_URL_PREFIX
+            $url = $prefix + $REST_BASE_URL
+            
+            #Remove whitespace
+            $Server = $Server -split '\s+'
+            $Port = $Port -split '\s+'
+            Write-Output (($url.Replace("Server", $Server)).Replace("Port", $Port)).Replace(" ", "")
+    
+        }
     }
     catch {
         throw $_
@@ -1381,6 +1444,13 @@ function GetAPIDetail ([String] $Request) {
                 Method      = 'Delete'
                 Body        = ''
             }
+
+            'Update-CVSubclient' = @{
+                Description = 'This operation Updates a subclient'
+                Endpoint    = 'Subclient/{subClientId}'
+                Method      = 'Post'
+                Body        = ''
+            }
         }
     }
     catch {
@@ -1417,6 +1487,7 @@ $REST_AUTH_URL_PREFIX = 'http://';
 $REST_DEFAULT_PORT = '81';
 $REST_BASE_URL = 'Server:Port/SearchSvc/CVWebService.svc/';
 $REST_HTTP_STATUS_CODES = @(200, 201, 202, 203, 204, 205, 206, 206, 207, 208);
+$WEBCONSOLE_ENDPOINT = 'Server:Port/Webconsole/api';
 
 $CVPS_ERROR_ID = @{
     202  = 'REST API response [Accepted] error: The request has been received but not yet acted upon'
