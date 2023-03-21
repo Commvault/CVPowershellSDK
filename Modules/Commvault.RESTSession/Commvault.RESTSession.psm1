@@ -30,10 +30,10 @@ function Connect-CVServerWithAccessToken {
     Optional Parameter to connect via webserver and Server input should be just FQDN/Hostname/IP of webserver. Default 81.
 
 .EXAMPLE 
-    Add-CVAccessToken -AccessToken ### -Server http://<hostname>/webconsole/api
+    Connect-CVServerWithAccessToken -AccessToken ### -Server http://<hostname>/webconsole/api
 
 .EXAMPLE 
-    Add-CVAccessToken -AccessToken ### -Server <hostname>
+    Connect-CVServerWithAccessToken -AccessToken ### -Server <hostname>
 #>
     Param(
         [Parameter(Mandatory=$true)]
