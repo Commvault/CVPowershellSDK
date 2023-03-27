@@ -37,11 +37,21 @@ Usage
 -----
 Login to Commcell:
 - PS > Connect-CVServer
+<br />
+
+To use AccessToken to connect to the Commcell 
+-----
+- PS > Connect-CVServerWithAccessToken 
+<br/>
+
 - For information on any Commvault PowerShell command, run Get-Help [command] 
 - For detailed examples on any Commvault PowerShell command, run Get-Help [command] -Examples
 
 Sample Package Function Table
 -----------------------------
+Available from SP30
+- Function: Connect-CVServerWithAccessToken                    in Module: Commvault.RESTSession
+
 Available From V11 SP20:
 - Function: Get-CVBlackoutWindow                               in Module: Commvault.Policies
 - Function: Set-CVBlackoutWindow                               in Module: Commvault.Policies
@@ -49,7 +59,7 @@ Available From V11 SP20:
 - Function: Disable-CVBlackoutWindowIgnoreHigherLevelRules     in Module: Commvault.Policies
 - Function: Add-CVBlackoutWindow                               in Module: Commvault.Policies
 - Function: Remove-CVBlackoutWindow                            in Module: Commvault.Policies
-
+- Function: Update-CVSubclient                                 in Module: Commvault.Commcell
 Available From V11 SP16:
 - Function: Get-CVClient                                       in Module: Commvault.CommCell
 - Function: Get-CVClientGroup                                  in Module: Commvault.CommCell
