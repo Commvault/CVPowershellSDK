@@ -793,7 +793,7 @@ function GetAPIDetail ([String] $Request) {
             'Get-CVSubclient' = @{
         
                 Description = 'Get subclient list for given clientId from CommServe'
-                Endpoint    = 'Subclient?clientId={clientId}&propertyLevel=AllProperties'
+                Endpoint    = 'Subclient?clientId={clientId}'
                 Method      = 'Get'
                 Body        = ''
             
