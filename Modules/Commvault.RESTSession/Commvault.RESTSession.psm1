@@ -1207,7 +1207,7 @@ function GetAPIDetail ([String] $Request) {
             'Backup-CVSQLSubclient' = @{
         
                 Description = 'Backup SQL instance subclients'
-                Endpoint    = 'v2/sql/instances/{instanceId}/backup?subclient={subclientId}'
+                Endpoint    = 'v2/sql/instances/{instanceId}/backup?subClientId={subclientId}'
                 Method      = 'Post'
                 Body        = ''
             }
