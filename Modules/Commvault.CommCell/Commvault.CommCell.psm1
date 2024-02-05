@@ -1457,6 +1457,128 @@ function Set-CVClient {
     }
 }
 
+function Retire-CVClient {
+<#
+.SYNOPSIS
+    Method to Retire a particular Client
+
+.DESCRIPTION
+    Method to Retire a particular Client. Be cautious as it releases license and uninstalls the commvault software on client
+
+.PARAMETER Name
+    Retire client specified by Name.
+
+.PARAMETER Id
+    Retire client specified by Id.
+
+.PARAMETER Properties
+    Piped-in Properties set. 
+
+.PARAMETER Force
+    Switch to Force override of default 'WhatIf' confirmation behavior.
+
+.EXAMPLE
+    PS C:\>Retire-CVClient -Name "test-client" -Force
+
+
+.EXAMPLE
+    PS C:\>Retire-CVClient Id 7 -Force
+
+.OUTPUTS
+    Outputs [PSCustomObject] containing job submission result.
+
+.NOTES
+    Author: Gary Stoops
+    Company: Commvault
+#>
+    [CmdletBinding(DefaultParameterSetName = 'ByName', SupportsShouldProcess = $True, ConfirmImpact = 'High')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Alias('ClientName')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ByName')]
+        [ValidateNotNullorEmpty()]
+        [String] $Name,
+
+        [Alias('ClientId')]
+        [Parameter(Mandatory = $True, ParameterSetName = 'ById')]
+        [ValidateNotNullorEmpty()]
+        [Int32] $Id,
+
+        [Switch] $Force
+    )
+
+    begin { Write-Debug -Message "$($MyInvocation.MyCommand): begin"
+
+        try {
+            $sessionObj = Get-CVSessionDetail $MyInvocation.MyCommand.Name
+            $endpointSave = $sessionObj.requestProps.endpoint
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    process { Write-Debug -Message "$($MyInvocation.MyCommand): process"
+
+        try {
+            $sessionObj.requestProps.endpoint = $endpointSave
+            
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $Id) 
+            }
+            else {
+                $clientObj = Get-CVClient -Name $Name
+                if ($null -eq $clientObj) { 
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): client not found having name [$Name]"
+                    return
+                }
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{clientId}', $clientObj.clientId) 
+            }
+
+            $headerObj = Get-CVRESTHeader $sessionObj
+            $body = ''
+            $payload = @{ }
+            $payload.Add('headerObject', $headerObj)
+            $payload.Add('body', $body)
+
+
+            if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                if ($Force -or $PSCmdlet.ShouldProcess($Id)) {
+                    $response = Submit-CVRESTRequest $payload
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload $validate -DryRun
+                }
+            }
+            else {
+                if ($Force -or $PSCmdlet.ShouldProcess($clientObj.clientName)) {
+                    $response = Submit-CVRESTRequest $payload
+                }
+                else {
+                    $response = Submit-CVRESTRequest $payload -DryRun
+                }
+            }
+
+            if ($response.IsValid) {
+                Write-Output $response.Content
+            }
+            else {
+                if ($PSCmdlet.ParameterSetName -eq 'ById' ) {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): set client properties request failed for group [$Id]"
+                }
+                else {
+                    Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): set client properties request failed for group [$($clientObj.clientName)]"
+                }
+            }
+        }
+        catch {
+            throw $_
+        }
+    }
+
+    end { Write-Debug -Message "$($MyInvocation.MyCommand): end"
+    }
+}
 
 function GetClientProperties ([System.Object] $ClientObject) {
 

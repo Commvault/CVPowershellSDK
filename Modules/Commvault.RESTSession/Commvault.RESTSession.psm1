@@ -1219,7 +1219,15 @@ function GetAPIDetail ([String] $Request) {
                 Method      = 'Post'
                 Body        = ''
             }
-    
+            
+            'Backup-CVSQLDatabaseCopyOnly' = @{
+        
+                Description = 'Backup SQL database'
+                Endpoint    = 'v2/sql/instance/{instanceId}/backup'
+                Method      = 'Post'
+                Body        = ''
+            }
+
             'Export-CVSQLDatabaseRTD' = @{
         
                 Description = 'Submit restore-to-disk job for SQL database'
@@ -1449,6 +1457,12 @@ function GetAPIDetail ([String] $Request) {
                 Description = 'This operation Updates a subclient'
                 Endpoint    = 'Subclient/{subClientId}'
                 Method      = 'Post'
+                Body        = ''
+            }
+            'Retire-CVClient' = @{
+                Description = "This operation retires a client in commcell"
+                Endpoint    = 'Client/{clientId}/retire'
+                Method      = "Delete"
                 Body        = ''
             }
         }

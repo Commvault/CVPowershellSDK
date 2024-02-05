@@ -1133,6 +1133,9 @@ function Backup-CVSQLDatabase {
 .PARAMETER BackupType
     The BackupType: full, incremental (default), differential.
 
+.PARAMETER copyOnly
+    The copyOnly flag if set to true, backup will run with copy only option.
+
 .PARAMETER Force
     Switch to Force override of default 'WhatIf' confirmation behavior.
 
@@ -1147,6 +1150,9 @@ function Backup-CVSQLDatabase {
 
 .EXAMPLE
     Get-CVSQLDatabase -Name AuditDB | Backup-CVSQLDatabase
+
+.EXAMPLE
+    Backup-cvsQLDatabase -Id 51085 -BackupType Full  -copyOnly $true 
 
 .OUTPUTS
     Outputs [PSCustomObject] containing job submission result.
@@ -1172,6 +1178,9 @@ function Backup-CVSQLDatabase {
 
         [Parameter(Mandatory = $False)]
         [CVSQLBackupType] $BackupType = 'incremental',
+
+        [Parameter(Mandatory = $False)]
+        [Bool] $copyOnly = $false,
         
         [Switch] $Force
     )
@@ -1214,18 +1223,36 @@ function Backup-CVSQLDatabase {
                 }
             }
 
-            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
-            $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
+            if ($copyOnly) {
+                $body = @{}
+                $body.Add('copyOnly', $true)
+                $body.Add('backupType', $BackupType)
+                $body.Add('instanceId', $DatabaseObject.insId)
+                $body.Add('database', @($DatabaseObject.dbId))
 
-            $body = @{}
-            $body.Add('backupType', $BackupType)
-            $body = ($body | ConvertTo-Json -Depth 10)
+                $sessionObj = Get-CVSessionDetail 'Backup-CVSQLDatabaseCopyOnly'
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
+                $body = ($body | ConvertTo-Json -Depth 10)
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $payload = @{}
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = 'jobs'
+            }
+            else {
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{instanceId}', $DatabaseObject.insId)
+                $sessionObj.requestProps.endpoint = $sessionObj.requestProps.endpoint -creplace ('{databaseId}', $DatabaseObject.dbId)
 
-            $payload = @{}
-            $headerObj = Get-CVRESTHeader $sessionObj
-            $payload.Add('headerObject', $headerObj)
-            $payload.Add('body', $body)
-            $validate = 'taskId'
+                $body = @{}
+                $body.Add('backupType', $BackupType)
+                $body = ($body | ConvertTo-Json -Depth 10)
+
+                $payload = @{}
+                $headerObj = Get-CVRESTHeader $sessionObj
+                $payload.Add('headerObject', $headerObj)
+                $payload.Add('body', $body)
+                $validate = 'taskId'                
+            }
 
             if ($Force -or $PSCmdlet.ShouldProcess($DatabaseObject.dbName)) {
                 $response = Submit-CVRESTRequest $payload $validate
