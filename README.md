@@ -137,6 +137,41 @@ Contributions
 =============
 Contributions are welcome; please do a pull request against the 'dev' branch.
 
+
+
+---
+
+# New Module: CVPowershellSDKV2
+
+We have introduced a new Powershell SDK called Powershell SDK V2. You can use the Commvault PowerShell module to interact with objects in your CommCell environment using PowerShell cmdlets. The cmdlets allow you to perform much more tasks allowed in command center. 
+
+### New module also includes the above commandlets from CVPowershellSDK
+
+**GitHub Link:** [Commvault/CVPowershellSDKV2](https://github.com/Commvault/CVPowershellSDKV2)
+
+### Installing powershell SDK from Powershell Gallery
+
+The new SDK is published on the [PowerShell Gallery](https://www.powershellgallery.com/packages/CommvaultPowerShell).
+
+Launch a PowerShell session and execute the following command:
+```powershell
+Install-Module -Name CommvaultPowerShell
+```
+
+After installation, verify the cmdlets by running:
+```powershell
+Get-Command –Module CommvaultPowerShell
+```
+
+For more information on a cmdlet, execute:
+```powershell
+Get-Help –Name <cmdlet name>
+```
+
+Please visit the GitHub [Commvault/CVPowershellSDKV2](https://github.com/Commvault/CVPowershellSDKV2) for more details.
+```
+
+
 Questions/Comments/Suggestions
 --------------
 If you have any questions or comments, please contact us [here](https://ma.commvault.com/).
