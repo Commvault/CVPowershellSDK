@@ -170,3 +170,9 @@ Get-Help –Name <cmdlet name>
 
 Please visit the GitHub [Commvault/CVPowershellSDKV2](https://github.com/Commvault/CVPowershellSDKV2) for more details.
 ```
+
+
+Questions/Comments/Suggestions
+--------------
+If you have any questions or comments, please contact us [here](https://ma.commvault.com/).
+Also Check out our community for [Automation](https://community.commvault.com/developer-tools-integration-and-automation-workflow-rest-powershell-etc-50) incase of queries.
