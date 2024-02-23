@@ -1604,7 +1604,7 @@ function Restore-CVSQLDatabase {
                     return
                 }
     
-                $instanceObj = Get-CVSQLInstance -Name $PSBoundParameters.DestInstanceName | Where-Object { $_.insName -ieq $PSBoundParameters.DestClientName }
+                $instanceObj = Get-CVSQLInstance -Name $PSBoundParameters.DestInstanceName | Where-Object { $_.insName -ieq $PSBoundParameters.DestInstanceName }
                 if ($null -eq $instanceObj) { 
                     Write-Information -InformationAction Continue -MessageData "INFO: $($MyInvocation.MyCommand): destination instance not found having name [$($PSBoundParameters.DestInstanceName)]"      
                     return
